@@ -1,0 +1,32 @@
+{
+  "id": "router_switch_v1",
+  "title": "Router LAN 1 to Switch Port 3 (blue patch cable)",
+  "devices": [
+    {
+      "id": "router",
+      "name": "Router",
+      "description": "Home/office Wi-Fi router. EDIT to match your device: brand, colour, antennas, port row on the back.",
+      "sam_concept": "router"
+    },
+    {
+      "id": "switch",
+      "name": "Switch",
+      "description": "Small unmanaged Ethernet switch. EDIT to match your device: brand, colour, number of ports.",
+      "sam_concept": "network switch"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "kind": "connection",
+      "text": "The blue Ethernet cable must connect Router LAN 1 to Switch Port 3.",
+      "cable_color": "blue",
+      "cable_type": "ethernet cable",
+      "endpoints": [
+        {"device_id": "router", "port_label": "LAN 1", "label_aliases": []},
+        {"device_id": "switch", "port_label": "3", "label_aliases": []}
+      ],
+      "cable_identity": "require_trace"
+    }
+  ]
+}

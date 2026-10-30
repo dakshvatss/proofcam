@@ -1,0 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated data — never commit
+*.db
+*.sqlite
+*.sqlite3
+runs/
+backend/runs/
+
+# Private photographs / recordings (keep only explicitly published assets)
+data/images/*
+!data/images/README.md
+*.heic
+*.HEIC
+*.mov
+*.MOV
+*.mp4
+
+# Node (Milestone 3+)
+node_modules/
+dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
