@@ -57,7 +57,7 @@ Each run writes `runs/<id>/report.md`, `report.json`, `trace.jsonl`, normalized 
 Mocked results are tagged `source="mock"` in traces; real calls are `source="live"`.
 
 ## Docs
-[SPEC](docs/SPEC.md) · [META_API_FACTS](docs/META_API_FACTS.md) · [DECISIONS](docs/DECISIONS.md) · [PROGRESS](docs/PROGRESS.md)
+[GUIDE](GUIDE.md) · [SPEC](docs/SPEC.md) · [META_API_FACTS](docs/META_API_FACTS.md) · [DECISIONS](docs/DECISIONS.md) · [PROGRESS](docs/PROGRESS.md)
 
 ProofCam verifies visually observable conditions only. It does not certify electrical safety, hidden
 connectivity, operational performance, or regulatory compliance.
