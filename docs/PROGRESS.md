@@ -36,7 +36,11 @@ No VERIFIED or VIOLATED verdict was produced, and none was justified by any sing
 6. **Latency:** default reasoning 25–48 s/photo; `low` 6–29 s with the same verdicts. Added opt-in
    `PROOFCAM_MUSE_REASONING_EFFORT` (default unset = API default). Decision deferred to Milestone 1.
 7. All-ports-clearly-empty (01) cannot yet yield VIOLATED because labels are unreadable; kept conservative.
-8. Colour vocabulary lacks beige/off-white; spec colour "beige" currently can neither match nor conflict.
+8. **False-violation risk from colour wording.** `beige/cream/tan/khaki/ivory → beige` was added to the colour
+   table this session (active during both runs; the edit was interrupted, so confirm it should stay; no test yet).
+   s05 run 2 called the same cable "off-white" → base `white` ≠ spec `beige`. Had the port label been legible, the
+   policy would have reported a clear wrong-colour VIOLATION for a correct cable. Fix candidate: treat adjacent
+   colours (white/beige/gray) as "uncertain", not as conflict.
 
 ### Unproven
 Same-device multi-view inspection; a live VERIFIED or VIOLATED verdict; next-view → follow-up photo actually
