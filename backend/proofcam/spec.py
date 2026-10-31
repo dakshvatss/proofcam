@@ -19,6 +19,10 @@ class DeviceSpec(_Strict):
     name: str
     description: str = Field(description="Visual description used to recognise the device.")
     sam_concept: str = Field(description="Short noun phrase for SAM concept segmentation, e.g. 'router'.")
+    # Optional author-declared physical layout: each row lists port labels left-to-right as seen when
+    # facing the ports. Used ONLY for neighbour-label inference (policy.infer_port_identity), and only
+    # where a requirement opts in with port_identity="label_or_layout".
+    port_rows: list[list[str]] = Field(default_factory=list)
 
 
 class EndpointSpec(_Strict):
@@ -43,6 +47,12 @@ class ConnectionRequirement(_Strict):
     #                            so endpoint observations may be joined. Disclosed in every report.
     cable_identity: Literal["require_trace", "unique_in_installation"] = "require_trace"
     sam_concept: str | None = None
+    # How a port may be identified:
+    #   label_only      - its own printed label must be legible in the image (default).
+    #   label_or_layout - additionally, a port whose label is hidden may be identified from legible
+    #                     neighbouring labels + the device's declared port_rows. Disclosed as an
+    #                     assumption in every report; never used to establish a violation.
+    port_identity: Literal["label_only", "label_or_layout"] = "label_only"
 
     def cable_concept(self) -> str:
         return self.sam_concept or f"{self.cable_color} {self.cable_type}"

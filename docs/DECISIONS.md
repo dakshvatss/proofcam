@@ -58,3 +58,39 @@ live camera app needs same-device multi-view data and repeated runs; decide in M
 The five reference photos come from different setups. Each runs with its own spec and a fresh agent
 (`experiments/run_scenarios.py`, `data/specs/reference/`). They validate API integration and single-photo
 perception/abstention only; they cannot demonstrate multi-view inspection.
+
+## D13 — Port identity: direct label by default; neighbour-layout inference only by explicit opt-in (2026-10-31)
+On the user's setup the plug hides the target label whenever the cable is inserted (router LAN 1, switch 3), so
+the label-only rule can never establish either endpoint. Rule (`policy.infer_port_identity`), all in ONE image:
+the device declares `port_rows` containing the target once; every reported port of the device has a box; no port
+is legibly labelled as the target; every legible label of that row sits at exactly the predicted offset (ordered
+by box centre, same row = ≥50% vertical overlap); two legible anchors (both neighbours, or the next two inward
+ports for a row end); neighbour spacing regular (ratio ≤ 1.5) so a port Muse missed breaks the chain instead of
+shifting it. Muse is never asked to guess a hidden label. Inferred identity: counts toward support/identity only
+when the requirement sets `port_identity: "label_or_layout"`, is disclosed as an assumption, still needs clear
+insertion, colour and SAM grounding, and **never establishes a violation** (a mis-inference must not condemn a
+correct installation). Inferred support against a direct-label violation is a contradiction. Known residual risk:
+the rule trusts Muse's left-to-right order and box geometry (port boxes were ~1 port off in s01, though relative
+order held in m2/m3); mirrored/rotated photos fail the order check rather than mis-identify. Default stays
+`label_only`, including for `my_setup.json`.
+
+## D14 — Cable identity is a separate single-image fact, joined to endpoints by port identity (2026-10-31)
+Previously identity required the trace image to also fully support both endpoints. Now any one image showing a
+required-colour cable `fully_traced` between ports identified as the two spec ports (plugs inserted, SAM-grounded)
+establishes identity, and endpoint support may come from other photos. Joining is through *port* identity under
+the static-installation assumption (a port holds one plug), never through cable appearance across images.
+
+## D15 — Static verification by default; installation changes must be declared (2026-10-31)
+All photos of an inspection are assumed to show one unchanged installation; a clear violation is terminal. A
+correction workflow (technician fixes the cable mid-inspection) is supported only through an explicit
+`mark_installation_changed(reason)` event: observations carry an `epoch`, only the current epoch is assessed,
+earlier photos stay in the report marked superseded, gap attempts reset, budget stops are never reopened. Mixing
+configurations without declaring a change surfaces as a contradiction or a violation, never as verification.
+Deferred (Milestone 2/3): an "installation guidance" mode where violations are non-terminal coaching steps, and
+automatic change detection.
+
+## D16 — Perceive once, replay in any order (2026-10-31)
+Perception of a photo (Muse extraction + SAM links) does not depend on inspection state, so experiments perceive
+each photo once and replay the same observation into every order (`observe_recorded`, trace `source="replay"`).
+Final-assessment differences can then only come from the agent/policy, not from Muse run-to-run variance.
+Guidance planning may still be live (Muse) or deterministic (offline).

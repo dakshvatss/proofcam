@@ -1,5 +1,142 @@
 # Progress log
 
+## 2026-10-31 — Live multi-photo test with a SYNTHETIC (AI-generated) image: first live VERIFIED
+
+**What this is:** a real Meta API run (trace `source="live"`, 12 calls, all `ok`) in which the third photo was an
+**AI-generated revision of M7** (file `data/images/m7_router_rear_far.png`, image id `img_559976dd5064`; the original
+real M7 was `img_4d3f6768c11c`). It tests the live pipeline and the policy on synthetic image evidence. It is
+**NOT validation on a real installation**, and the VERIFIED must not be reported as one.
+
+**Run:** `runs/20261031-180239-0c97ea/` (spec `data/specs/my_setup.json`, requirement `port_identity` =
+`label_only`, SAM grounding required). All figures below were checked against that run's `report.json`/`trace.jsonl`.
+
+| | |
+|---|---|
+| Photos, in order | 1 `m2_router_rear_close.png` → 2 `m3_switch_ports_close.png` → 3 revised `m7_router_rear_far.png` |
+| After photo 1 / 2 | INSUFFICIENT_EVIDENCE both times (both endpoints `unknown`); Muse next-views `nv1`, `nv2` (gap `LABEL_ILLEGIBLE`) |
+| After photo 3 | **VERIFIED**; stop reason `all_requirements_resolved` |
+| Router LAN 1 | established from **photo 3**: P1 label `LAN 1` read as `legible` (`direct_label`), blue plug, clear, SAM cable mask 3609 px at the port |
+| Switch Port 3 | established from **photo 3**: P9 label `3` `legible` (`direct_label`), blue plug, clear, SAM 3140 px |
+| Cable continuity | established from **photo 3**: blue cable C1 `fully_traced` P1 ↔ P9, both ports SAM-grounded |
+| Assumptions | none (no layout inference used) |
+| Calls / cost | 12 calls (Muse 5: 3 observe + 2 plan; SAM 7), 0 errors; est. **$0.0941** (Muse ≈ 56.6 s total, SAM ≈ 25.4 s) |
+
+How the verdict was reached: in photos 1 and 2 the plug hides the target labels. Layout inference identified
+`LAN 1` (photo 1) and `3` (photo 2) but is **not permitted** under `label_only`, so those items are listed as "not
+counted" and nothing was established. Photo 3 (synthetic) shows every port label `legible` (LAN 1–4, USB, 1–5), so
+each endpoint and the cable trace were established directly in one image.
+
+**How this differs from the earlier offline replay (section below):** the replay used the *real* M7, whose labels
+were only `partially_legible`, and correctly stayed INSUFFICIENT_EVIDENCE in every order (cable identity not
+established). That replay made no API calls. This run used a different, synthetic third image and live Muse/SAM, so
+the two results are not comparable evidence of the same thing: the difference between them is the image, not the
+policy. It does show that the policy reaches VERIFIED from live model output when the image legibly supports it.
+
+**What this does and does not show.**
+- Shows: live Muse + SAM + policy + live next-view planning run end to end; the policy verifies when one photo
+  legibly shows both ports and a grounded, fully traced cable; no assumption or inference was needed.
+- Does not show: behaviour on real photos (the real M7 cannot verify); that Muse reads real labels this well; order
+  independence on live data (only one order, M2→M3→M7, was run live); stability across repeated runs.
+- Note: Muse could in principle read an AI-generated image's text more cleanly than a real photo's; do not infer
+  real-world accuracy from it.
+
+Other observations from the run: SAM `network switch` again returned 0 objects (switch device grounding not
+corroborated, and router device IoU was 0.41, below 0.5); neither is required for the verdict. Local file note: the
+offline fixture and replay tests refer to the original M7 (`img_4d3f6768c11c`); with the revised file now at
+`data/images/m7_router_rear_far.png`, `run_sequences.py` replay will not attach that photo (image-id mismatch;
+verdicts unaffected, overlays/images omitted).
+
+**Milestone 0 multi-photo status:** still not marked complete. A live order-varied experiment on real photos
+(`run_sequences.py --mode live`) has not been run.
+
+## 2026-10-31 — Order-independent evidence accumulation (offline only; live experiment NOT yet run)
+
+**No paid API calls were made in this session.** Everything below is mocked or an offline replay of observations
+recorded in the earlier live run `runs/scenarios-m-20261031-154423`.
+
+### The m1–m7 live run (recorded here for the first time)
+`runs/scenarios-m-20261031-154423` (script not in the repo): each own-setup photo was run as an INDEPENDENT
+single-photo inspection with `data/specs/my_setup.json`. 30 live calls, ≈ $0.24, 16–37 s per photo. 0 API errors.
+
+| Photo | What Muse/SAM reported | Verdict |
+|---|---|---|
+| m1 front | Switch ports `1`–`5` legible, all empty; router front only | VIOLATED (switch 3 clearly empty) — a different physical configuration (cable not yet in) |
+| m2 router rear close | Leftmost Ethernet port: blue plug, `no_label` (label under the plug); `LAN 2/3/4` legible + empty; SAM cable grounded (22,151 px) | INSUFFICIENT (gap was PORT_NOT_FOUND) |
+| m3 switch close | Middle port: blue plug, label `illegible` (under the plug); `1,2,4,5` legible; grounded | INSUFFICIENT |
+| m4 wide | Switch 3rd port blue (label illegible); router end hidden under the router | INSUFFICIENT |
+| m5 wrong port | Blue plug in switch 4th port; port `3` legible + empty | VIOLATED (switch 3 empty) |
+| m6 occluded | Hand inserting the cable; labels 1–3 hidden | INSUFFICIENT |
+| m7 rear far | Blue cable C1 `fully_traced` router P1 ↔ switch P9, both grounded; but every label only `partially_legible`/`illegible` | INSUFFICIENT |
+
+Live findings: (a) the target labels are **physically hidden by the inserted plug** on both devices whenever the
+cable is in place, so the strict rule can never establish either endpoint for this setup; (b) SAM `network
+switch` returned **0 objects in all 7 photos** (`router` worked), so switch device grounding never corroborates
+(device grounding is not required for verdicts, but the concept needs changing, e.g. "ethernet switch" / "black
+box" — untested); (c) Muse also lists the DC jack / power button as ports.
+
+### What already worked (verified by reading the code)
+One `InspectionAgent` keeps every `ObservationRecord`; each `observe()` re-assesses ALL observations, so endpoint
+support from different photos was already combined; gaps, attempt limits and budgets were bounded.
+
+### What was missing → changes
+1. **Cable identity was tied to endpoint support in the same image.** `require_trace` only accepted a fully traced
+   cable in an image where both endpoints were also fully *supported*; identity was not even evaluated until both
+   endpoints were established. Now (`policy.identity_evidence`) identity is a separate single-image fact: a cable of
+   the required colour fully traced between a port identified as endpoint 1 and one identified as endpoint 2, each
+   with a plug inserted and SAM-grounded. Insertion clarity may come from close-ups. Near misses (traced cable,
+   ports not identifiable in that photo) are reported but never count.
+2. **Port identity from neighbours** (`policy.infer_port_identity`, opt-in): see DECISIONS D13. Default
+   `port_identity="label_only"` keeps the old behaviour. `my_setup.json` now declares `port_rows` for both devices
+   (layout facts; the router's leftmost port being `LAN 1` is the user's own label — it is never printed visibly),
+   but its requirement stays `label_only`.
+3. **Clear plugs:** a colourless/unknown plug is supported if a cable of the required colour visibly belongs to
+   that port in the same image (support only; never a violation).
+4. **Hidden-label gap:** a matching plug in a port with an unreadable label now yields `LABEL_ILLEGIBLE` with
+   `label_hidden_by_plug` (was `PORT_NOT_FOUND`) and a specific angle instruction.
+5. **Guidance:** contradictions first, then gaps on a device visible in the latest photo, then gap type
+   (fixes the s02 finding). The Muse planner now receives the established evidence and the earlier instructions
+   for the same gap ("do not repeat"); the fallback template says the previous view failed. Fallback text no longer
+   pastes the whole device description.
+6. **Duplicates:** an identical image (same `image_id`) is not sent to the models and adds no evidence.
+7. **Installation changes:** `InspectionAgent.mark_installation_changed(reason)` (CLI interactive: `!changed`).
+   Static verification stays the default and violations stay terminal; after an explicit change, earlier photos
+   are kept but stop counting (an `epoch` per observation). Budget stops cannot be reopened. See D15.
+8. **Replay:** `InspectionAgent.observe_recorded()` integrates a recorded observation without perception calls
+   (trace `source="replay"`); `plan_with_muse=False` uses deterministic plans (zero API calls).
+9. **Report:** photo order, a per-photo verdict timeline, what each photo contributes, port-identity basis
+   (`direct_label` / `layout_inference`), evidence not counted, near misses, installation changes, stop reason.
+
+### Tests
+`pytest -q` → **98 passed**, 1 live test deselected (was 52). New: `tests/test_evidence_fusion.py` (27, synthetic:
+separable identity in all 6 orders → VERIFIED; trace to the wrong port / partial / ungrounded → not; trace alone
+never verifies; 7 inference refusal cases; inference never a violation; inferred vs direct-empty → contradiction;
+inferred support still needs SAM; clear-plug colour), `tests/test_sequences.py` (15, replay of the recorded
+m1/m2/m3/m5/m7 observations from `tests/fixtures/my_setup_live_observations.json` — Muse/SAM text output only, no
+photos), 4 more in `test_agent.py` (live code path with mocks: three complementary photos in three orders →
+VERIFIED with correct provenance; planner receives evidence state and earlier failed requests). Mutation check:
+disabling each of five policy guards (pitch ratio, anchor count, inference opt-in, near-miss, unboxed port) makes a test fail.
+
+### Order-independence results (offline replay, `runs/sequences-replay-20261031-172829`)
+`experiments/run_sequences.py` (replay mode), M2/M3/M7 in orders A m2→m3→m7, B m3→m7→m2, C m7→m2→m3 (tests: all 6):
+
+| Variant | Final in every order | Endpoints | Identity |
+|---|---|---|---|
+| `label_only` (spec as authored) | INSUFFICIENT_EVIDENCE, identical | both `unknown`: LABEL_ILLEGIBLE (label hidden by plug) | unknown |
+| `label_or_layout` | INSUFFICIENT_EVIDENCE, identical | router LAN 1 established from **m2**, switch 3 from **m3** (both by layout inference, disclosed) | unknown: m7 traces the cable but its labels are only partially legible, so its ports are not identified (near miss) |
+
+Intermediate guidance differs by order, as expected (e.g. after m2 the strict variant asks for an angle on the
+router label; the layout variant, router done, asks for the switch). Negatives (separate): m1 → VIOLATED and
+stops; m5 → VIOLATED and stops; m3 then m1 without declaring a change → `label_only`: VIOLATED (m3 contributes
+nothing); `label_or_layout`: CONTRADICTION (no verdict); m1 → declared change → m2,m3,m7 → m1 superseded, same
+final as the positive set.
+
+### Status
+Order-independent accumulation is demonstrated **offline only**. Multi-photo behaviour for Milestone 0 is NOT
+marked complete: the live experiment (`run_sequences.py --mode live`, ≈ $0.3–0.5) has not been run (needs
+approval), and no live VERIFIED exists. With the current photos even the layout variant cannot verify; a wide
+photo where both port rows' labels are legible (or a close-up that shows the cable leaving one port toward the
+other device) is needed.
+
 ## 2026-10-31 — Own-setup inspection spec (`data/specs/my_setup.json`)
 
 No live API calls; no inspection run. Spec authored from the user's photos `data/images/m1–m7` (gitignored, not

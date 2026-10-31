@@ -58,7 +58,7 @@ connectivity, operational performance, or regulatory compliance.
 
 | Milestone | What | Status |
 |---|---|---|
-| 0 | Technical feasibility: live Muse + SAM, the loop, the policy | **Done.** Live API works, overlays aligned. Multi-view on one real device still unproven |
+| 0 | Technical feasibility: live Muse + SAM, the loop, the policy | Single-photo pipeline **done** live. Order-independent multi-photo accumulation implemented and proven **offline**; live multi-photo experiment not yet run |
 | 1 | Core backend: FastAPI endpoints, SQLite persistence | Not started |
 | 2 | Active agent refinements: better gap planning, contradiction handling | Not started |
 | 3 | Live camera web app (React) | Not started; no `frontend/` folder yet |
@@ -68,13 +68,17 @@ connectivity, operational performance, or regulatory compliance.
 **Proven live (2026-10-31):** Muse returns valid structured observations; SAM returns masks that line up with the
 photo; the whole single-photo pipeline runs end to end; it abstains correctly on all five reference images.
 
-**Not yet proven:** a follow-up photo of the *same* device resolving a gap; any live VERIFIED or VIOLATED verdict.
-The five reference photos come from different setups, so they cannot show that.
+**Proven offline (2026-10-31):** with one persistent agent, the recorded observations of the user's own photos
+(m2 router close-up, m3 switch close-up, m7 wide view) reach the identical final assessment in every order;
+synthetic complementary photos reach VERIFIED in all 6 orders (see [docs/PROGRESS.md](docs/PROGRESS.md)).
+Live single-photo runs on m1 and m5 produced correct VIOLATED verdicts (switch port 3 clearly empty).
+
+**Not yet proven live:** the multi-photo experiment (`experiments/run_sequences.py --mode live`); any live
+VERIFIED. On the user's setup the plug hides the target labels, so the strict rule cannot verify it.
 
 **Known weaknesses to fix next** (details in [docs/PROGRESS.md](docs/PROGRESS.md)):
-1. A clear plug on a blue cable can't be verified, because colour is checked only on the plug.
-2. Guidance can target an absent device instead of the device already in view (photo 02 asked to find the switch
-   rather than "go to the rear").
+1. (Fixed 2026-10-31) Clear plug on a blue cable: a linked cable's colour now supports a colourless plug.
+2. (Fixed 2026-10-31) Guidance targeting an absent device: gaps on the device in the latest photo come first.
 3. Similar colour words ("beige" vs "off-white") could produce a false VIOLATED.
 4. Muse's port-level boxes are imprecise (about one port width off); device-level boxes are good.
 5. One photo takes 25–48 s at default reasoning, 6–29 s with `reasoning_effort=low`.
@@ -94,20 +98,21 @@ proofcam/
 ├── docs/
 │   ├── SPEC.md              ← product requirements and acceptance criteria per milestone
 │   ├── META_API_FACTS.md    ← what the Meta API does, marked DOC / SRC / LIVE / UNVERIFIED
-│   ├── DECISIONS.md         ← technical decisions D1–D12 and why
+│   ├── DECISIONS.md         ← technical decisions D1–D16 and why
 │   └── PROGRESS.md          ← dated log: what was done, test results, findings, blockers
 │
 ├── data/
 │   ├── images/              ← your photos (git-ignored except README.md)
 │   └── specs/
 │       ├── router_switch.json   ← example spec: blue cable, Router LAN 1 → Switch port 3
+│       ├── my_setup.json        ← the user's real TP-Link router + NETGEAR switch (with port_rows)
 │       └── reference/           ← one spec per reference photo (s01–s05), used by run_scenarios.py
 │
 ├── backend/
 │   ├── pyproject.toml       ← dependencies and pytest settings
 │   ├── .venv/               ← Python 3.12 virtual environment (local only)
 │   ├── proofcam/            ← THE ENGINE (all application code)
-│   ├── tests/               ← unit tests (mocked API) + live tests
+│   ├── tests/               ← unit tests (mocked API), offline replays, live tests; fixtures/ = recorded model output
 │   └── experiments/         ← scripts that call the real API for validation
 │
 └── runs/                    ← output of every real run (git-ignored; contains your photos)
@@ -140,21 +145,24 @@ agent.py    observe()        one step of the loop:
   │                 Skipped if the photo doesn't show the equipment.
   │
   ├─ 3. ASSESS    policy.py  assess_requirement()
-  │                 deterministic rules over ALL photos so far →
+  │                 deterministic rules over ALL photos of the current configuration (order-independent) →
   │                 VERIFIED / VIOLATED / INSUFFICIENT_EVIDENCE + a list of typed "gaps".
   │
   ├─ 4. STOP?     all settled? photo budget used? gap tried twice already? → stop.
   │
-  └─ 5. PLAN      policy.py select_gap() picks the most basic missing piece.
-                  muse.py plan_next_view() asks Muse for a concrete camera instruction.
+  └─ 5. PLAN      policy.py select_gap(): contradiction first, then the device in the latest photo,
+                  then the most basic missing piece. muse.py plan_next_view() asks Muse for a concrete camera
+                  instruction, telling it what is already established and which instructions already failed.
                   If Muse fails, a fixed template is used instead (still names the device/port).
   │
   ▼
 report.py   write_report()   writes runs/<id>/report.md, report.json, trace.jsonl, overlays/, images/
 ```
 
-The user (or the CLI's next `--image`) provides the next photo, and `observe()` runs again with everything
-learned so far. Earlier photos are never thrown away.
+The user (or the CLI's next `--image`) provides the next photo, in any order, and `observe()` runs again with
+everything learned so far. Earlier photos are never thrown away. A repeated identical photo is ignored (no model
+calls). `observe_recorded()` replays a stored observation without perception calls (experiments/tests).
+`mark_installation_changed()` declares a physical change: earlier photos stay in the report but stop counting.
 
 ---
 
@@ -175,8 +183,8 @@ learned so far. Earlier photos are never thrown away.
 | [geometry.py](backend/proofcam/geometry.py) | Coordinate maths | `mask_to_image()` places a SAM mask into full-image pixels; `box_iou()`, `expand_box()`, `mask_pixels_in_box()` |
 | [grounding.py](backend/proofcam/grounding.py) | SAM ↔ Muse linking | `run_sam()`, `link_devices()` (IoU ≥ 0.5), `link_ports()` (cable mask must cover ≥30 px and ≥5% of the port region expanded by 50%) |
 | [evidence.py](backend/proofcam/evidence.py) | Evidence record types | `ObservationRecord` (one per photo), `GroundingLink`, `EvidenceItem`, `Gap`, `EndpointAssessment`, `RequirementAssessment`, `NextViewRequest` |
-| [policy.py](backend/proofcam/policy.py) | **The rulebook — the only place verdicts are set** | `assess_endpoint()`, `assess_requirement()`, `select_gap()`, `base_color()`, `label_matches()` |
-| [agent.py](backend/proofcam/agent.py) | The loop | `InspectionAgent.observe(image)` → `StepResult` (assessments, next view or stop reason) |
+| [policy.py](backend/proofcam/policy.py) | **The rulebook — the only place verdicts are set** | `assess_endpoint()`, `assess_requirement()`, `identity_evidence()`, `identify_port()` / `infer_port_identity()`, `select_gap()`, `base_color()` |
+| [agent.py](backend/proofcam/agent.py) | The loop | `InspectionAgent.observe(image)` / `observe_recorded(rec)` → `StepResult`; `mark_installation_changed()`; `history` (verdict after each photo) |
 | [trace.py](backend/proofcam/trace.py) | Audit log | `Trace`, `TraceEvent` (each tagged `source`: `live`, `mock`, `replay`, `local`); `summary()` totals calls, tokens, estimated cost |
 | [overlay.py](backend/proofcam/overlay.py) | Pictures | `render_overlay()`: SAM masks filled + solid boxes; Muse boxes dashed; legend on the image |
 | [report.py](backend/proofcam/report.py) | Output files | `write_report()` → `report.json`, `report.md`, `trace.jsonl`, images, overlays |
@@ -191,6 +199,9 @@ learned so far. Earlier photos are never thrown away.
 | [test_schemas_geometry.py](backend/tests/test_schemas_geometry.py) | Malformed model output rejected; SAM box/mask coordinates land in the right pixels; zero matches; size mismatch |
 | [test_meta_client.py](backend/tests/test_meta_client.py) | Exact request formats; retries; 400 not retried; timeouts; stream errors; hard call budget |
 | [test_agent.py](backend/tests/test_agent.py) | The full loop with mocks: two-photo verification, unrelated follow-up, stopping rules, model failures, planner fallback, report files |
+| [test_evidence_fusion.py](backend/tests/test_evidence_fusion.py) | Synthetic: complementary photos + separate cable trace → VERIFIED in all orders; every way a trace or a layout inference must be refused; inference never a violation |
+| [test_sequences.py](backend/tests/test_sequences.py) | Offline replay of recorded live observations (m1–m7) through one agent: order independence, negatives, declared change, duplicates, unusable photos, budget, report |
+| [fixtures/my_setup_live_observations.json](backend/tests/fixtures/my_setup_live_observations.json) | Recorded Muse/SAM **text output** from the live m1–m7 run (no photos); replayed as `source="replay"` |
 | [test_live.py](backend/tests/test_live.py) | **Real API** (skipped by default). Asserts only safety properties, never specific verdicts |
 
 ### `backend/experiments/` — real-API scripts
@@ -199,6 +210,7 @@ learned so far. Earlier photos are never thrown away.
 |---|---|
 | [probe_api.py](backend/experiments/probe_api.py) | 4 quick real calls (ping, structured text, structured + image, SAM) to confirm the API works |
 | [run_scenarios.py](backend/experiments/run_scenarios.py) | Runs each of the 5 reference photos as a **separate** inspection with its own spec; writes `runs/scenarios-<time>/` |
+| [run_sequences.py](backend/experiments/run_sequences.py) | Multi-photo order experiment on `my_setup.json`: positive (m2,m3,m7 in 3 orders) and negative groups, strict and layout variants. Offline replay by default; `--mode live` perceives each photo once, then replays every order with the live planner. Writes `runs/sequences-<mode>-<time>/` |
 
 ---
 
@@ -212,9 +224,12 @@ towards VERIFIED.
 ### What counts as support for one end of a cable (an "endpoint")
 All of these must hold in a single photo:
 - the device is identified with `clear` certainty;
-- the port label is `legible` and matches the spec (after normalization, or via `label_aliases`);
+- the port is **identified**: its own label is `legible` and matches the spec (after normalization, or via
+  `label_aliases`) — or, only if the requirement sets `port_identity: "label_or_layout"`, by neighbour-layout
+  inference (below);
 - a cable is `cable_inserted` with `clear` visibility;
-- the plug colour matches the required colour;
+- the plug colour matches the required colour (a colourless plug counts if a cable of the right colour visibly
+  belongs to that port in the same photo);
 - SAM's mask of the required cable reaches that port (can be switched off with `--no-grounding-requirement`,
   for comparison experiments only).
 
@@ -224,9 +239,23 @@ spec declares the cable unique (`cable_identity: "unique_in_installation"`), the
 *different* port also counts. Violations don't need SAM, because SAM can't segment something that's absent.
 
 ### Cable identity
-Both ends supported still isn't enough. ProofCam also needs either one photo where the same cable is
-`fully_traced` between the two ports, or the spec author's explicit statement that only one such cable exists
-(reported in the output as an assumption).
+Both ends supported still isn't enough. ProofCam also needs either one photo where a cable of the right colour is
+`fully_traced` between a port identified as end 1 and a port identified as end 2 (plugs in, SAM-grounded), or the
+spec author's explicit statement that only one such cable exists (reported as an assumption). The trace photo does
+**not** have to be the photo that supports the ends: a wide shot can prove identity while close-ups prove
+insertion. A traced cable whose ports can't be identified in that photo is reported as a "near miss", never as proof.
+
+### Port identity by neighbouring labels (opt-in)
+A plug often hides its own port label. If the device's spec declares `port_rows` (e.g. `["1","2","3","4","5"]`)
+and the requirement opts in, a port with a hidden label can be identified in one photo when both neighbours (or,
+at a row end, the next two ports) are legibly labelled at exactly the declared positions, every other legible label
+in the row fits, all ports have boxes, and spacing is regular. It is disclosed as an assumption, still needs clear
+insertion + colour + SAM, and **never** produces a VIOLATED. Default is `label_only`. Details: DECISIONS D13.
+
+### Static verification and installation changes
+All photos are assumed to show one unchanged installation; a clear violation ends the inspection. If the
+technician physically changes something, they must declare it (`mark_installation_changed`, CLI `!changed`):
+earlier photos stay in the report as superseded and stop counting. Undeclared mixes show up as contradictions.
 
 ### Endpoint states
 `established` (supported) · `violated` · `contradicted` (photos disagree; blocks a verdict) · `unknown`.
@@ -237,13 +266,14 @@ Both ends supported still isn't enough. ProofCam also needs either one photo whe
 | `CONTRADICTION` | Photos disagree about a port | Close, steady view of that port |
 | `DEVICE_NOT_SEEN` | Device not identified with certainty | Step back, frame the whole device |
 | `PORTS_NOT_VISIBLE` | Device seen, ports not | Move to the side with the ports |
-| `LABEL_ILLEGIBLE` | Ports seen, labels unreadable | Move closer to the label |
+| `LABEL_ILLEGIBLE` | Ports seen, labels unreadable (incl. a matching plug whose label is hidden by the plug) | Move closer / low angle so the label beside the plug is readable |
 | `PORT_NOT_FOUND` | Readable labels, but not the required one | Show the full port row |
 | `INSERTION_UNCLEAR` | Port found, plug state unclear | Closer view of the plug |
 | `GROUNDING_MISSING` | Muse claims a plug, SAM doesn't confirm it | Closer, unobstructed view |
 | `CABLE_CONTINUITY` | Both ends OK, cable not shown to be one cable | Wide shot of the whole cable run |
 
-Each gap is requested at most twice. Muse's planner can also declare a gap impossible to resolve visually
+Selection order: `CONTRADICTION` always first; then gaps on a device visible in the latest photo; then the
+table order. Each gap is requested at most twice, and the planner is told which instructions already failed. Muse's planner can also declare a gap impossible to resolve visually
 (e.g. the cable runs inside a wall); that gap is then abandoned.
 
 ### Coordinates
@@ -288,6 +318,8 @@ A spec is a JSON file listing devices and requirements. Example: [data/specs/rou
 - `sam_concept` is the short noun SAM searches for (one concept per request; keep it simple).
 - `cable_identity`: `require_trace` (default, strict) or `unique_in_installation` (you vouch there's only one
   such cable).
+- `port_identity`: `label_only` (default) or `label_or_layout` (allow neighbour-layout inference; disclosed).
+- Device `port_rows` (optional): port labels left-to-right as seen when facing the ports; used only for inference.
 - Only `connection` requirements exist so far; `kind` leaves room for more types later.
 
 ---
@@ -298,7 +330,8 @@ Every real run writes to `runs/` (git-ignored, because it contains photos).
 
 ```
 runs/<run-id>/                         one CLI run (or runs/scenarios-<time>/<scenario>/)
-├── report.md        ← start here: verdicts, evidence with source photo, gaps, next-view requests, usage
+├── report.md        ← start here: final verdict + why, timeline (verdict after each photo), per-photo
+│                      contributions, port-identity basis, gaps, next-view requests, usage
 ├── report.json      ← everything structured; Muse's claims are under observations[i].extraction
 ├── trace.jsonl      ← one line per event; on "muse_observe" lines, response_text = Muse's exact raw JSON;
 │                      on "sam_segment:*" lines, SAM's raw output; plus latency, tokens, errors
@@ -330,6 +363,11 @@ py -3.12 -m venv .venv
 
 # Live API check (4 calls, ~$0.01)
 .venv\Scripts\python.exe experiments\probe_api.py --image ..\data\images\04_blue_cable.png
+
+# Multi-photo order experiment on your own setup: offline replay (free, no API calls)
+.venv\Scripts\python.exe experiments\run_sequences.py
+# ... the same LIVE (costs ~$0.3-0.5; perceives m1,m2,m3,m5,m7 once, live planner per order)
+.venv\Scripts\python.exe experiments\run_sequences.py --mode live
 
 # Five reference scenarios (~$0.10 per full run)
 .venv\Scripts\python.exe experiments\run_scenarios.py            # or --only s04
@@ -364,11 +402,10 @@ The cheaper `-contributor` models let Meta train on your data, so they are not u
 
 ## 11. What's next
 
-1. Fix the three policy issues above (plug vs cable colour, gap priority for the device in view, colour-word
-   tolerance), with tests.
-2. Capture same-device photos (`m1_front`, `m2_router_rear_close`, `m3_switch_ports_close`, `m4_wide_run`,
-   `m5_wrong_port`, `m6_occluded`) and run the real multi-view loop. This is the missing proof.
-3. Optionally add a cumulative spend cap before running evaluations.
+1. With approval: run `experiments/run_sequences.py --mode live` (the missing live multi-photo proof).
+2. Decide whether `my_setup.json` should opt in to `label_or_layout`, and capture a photo that can establish
+   cable identity (a wide shot where both port rows' labels are legible, or the cable visibly leaving LAN 1).
+3. Colour-word tolerance (beige/off-white), SAM switch concept (0 matches for "network switch"), cumulative spend cap.
 4. Then Milestone 1: FastAPI + SQLite, so the web app has something to call.
 
 ---
@@ -398,4 +435,8 @@ The cheaper `-contributor` models let Meta train on your data, so they are not u
 | Spec | The JSON file describing devices and requirements |
 | Normalized image | The resized, rotated JPEG actually sent to the models; all coordinates refer to it |
 | Trace | The per-call audit log (`trace.jsonl`) |
-| Reference images | The five photos in `data/images/`; separate setups, never combined |
+| Reference images | The five photos `01`–`05` in `data/images/`; separate setups, never combined |
+| Own-setup photos | `m1`–`m7` in `data/images/`: the user's router + switch; m2/m3/m7 one configuration, m1 and m5 different ones |
+| Layout inference | Identifying a port whose label is hidden from its legible neighbours and the declared port order (opt-in) |
+| Epoch / configuration | Photos taken between two declared installation changes; only the current one counts |
+| Replay | Feeding recorded model output back through the agent without new API calls (`source="replay"`) |

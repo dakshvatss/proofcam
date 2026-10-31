@@ -1,0 +1,1596 @@
+{
+ "_provenance": "Recorded LIVE Meta API output (Muse Spark 1.3 extraction + SAM 3.1 grounding summaries and Muse<->SAM links) from runs/scenarios-m-20261031-154423 (2026-10-31), one independent single-photo inspection per photo, spec data/specs/my_setup.json. No photos or masks are included. Replays of this data are labelled source='replay', never 'live'.",
+ "observations": {
+  "m1": {
+   "image_id": "img_ddadc679d441",
+   "source_name": "m1_front.png",
+   "width": 1448,
+   "height": 1086,
+   "extraction": {
+    "image_usable": true,
+    "image_issues": [],
+    "shows_inspection_subject": true,
+    "scene_summary": "Front view of black TP-Link router on left and black NETGEAR 5-port switch on right sitting on wooden table. Switch front shows five empty Ethernet ports 1-5 and lit Power LED. Router rear panel not visible, so its Ethernet/USB/power ports not visible. A black cable runs behind the devices against the wall with unknown endpoints.",
+    "devices": [
+     {
+      "ref": "D1",
+      "spec_device_id": "router",
+      "identification_basis": "Glossy black body with white 'tp-link' logo on top, two black external antennas at rear, row of status LEDs along front edge",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": false,
+      "box": {
+       "x1": 53,
+       "y1": 260,
+       "x2": 598,
+       "y2": 733
+      }
+     },
+     {
+      "ref": "D2",
+      "spec_device_id": "switch",
+      "identification_basis": "Black rectangular box with white 'NETGEAR' wordmark on top, green Power LED and five front Ethernet ports numbered 1 to 5",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": true,
+      "box": {
+       "x1": 625,
+       "y1": 527,
+       "x2": 959,
+       "y2": 699
+      }
+     }
+    ],
+    "ports": [
+     {
+      "ref": "P1",
+      "device_ref": "D2",
+      "label_read": "1",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 711,
+       "y1": 655,
+       "x2": 753,
+       "y2": 695
+      }
+     },
+     {
+      "ref": "P2",
+      "device_ref": "D2",
+      "label_read": "2",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 758,
+       "y1": 655,
+       "x2": 800,
+       "y2": 696
+      }
+     },
+     {
+      "ref": "P3",
+      "device_ref": "D2",
+      "label_read": "3",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 805,
+       "y1": 656,
+       "x2": 848,
+       "y2": 696
+      }
+     },
+     {
+      "ref": "P4",
+      "device_ref": "D2",
+      "label_read": "4",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 853,
+       "y1": 656,
+       "x2": 896,
+       "y2": 696
+      }
+     },
+     {
+      "ref": "P5",
+      "device_ref": "D2",
+      "label_read": "5",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 900,
+       "y1": 656,
+       "x2": 943,
+       "y2": 696
+      }
+     }
+    ],
+    "cables": [
+     {
+      "ref": "C1",
+      "color": "black",
+      "path_visibility": "mostly_hidden",
+      "connected_port_refs": []
+     }
+    ],
+    "unreadable_details": [
+     "Router rear panel including LAN 1 port, LAN 2-4, USB, power jack and labels not visible from this front viewpoint",
+     "Destination and origin of black cable behind devices cannot be determined"
+    ]
+   },
+   "extraction_error": null,
+   "sam": [
+    {
+     "concept": "blue ethernet cable",
+     "status": "ok",
+     "objects": [],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "network switch",
+     "status": "ok",
+     "objects": [],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "router",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        878.0,
+        544.0,
+        1341.0,
+        730.0
+       ],
+       "confidence": 0.7264957427978516,
+       "mask_area_px": 75000
+      },
+      {
+       "object_id": "1",
+       "box_px": [
+        80.0,
+        225.0,
+        818.0,
+        762.0
+       ],
+       "confidence": 0.9452055096626282,
+       "mask_area_px": 158163
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    }
+   ],
+   "device_links": {
+    "D1": {
+     "concept": "router",
+     "sam_object_id": "1",
+     "iou": 0.791,
+     "overlap_px": null,
+     "corroborated": true,
+     "note": "best SAM 'router' box IoU 0.79"
+    },
+    "D2": {
+     "concept": "network switch",
+     "sam_object_id": null,
+     "iou": 0.0,
+     "overlap_px": null,
+     "corroborated": false,
+     "note": "SAM found no 'network switch'"
+    }
+   },
+   "port_links": {}
+  },
+  "m2": {
+   "image_id": "img_12e04bbdbb9c",
+   "source_name": "m2_router_rear_close.png",
+   "width": 1448,
+   "height": 1086,
+   "extraction": {
+    "image_usable": true,
+    "image_issues": [],
+    "shows_inspection_subject": true,
+    "scene_summary": "Close rear view of black TP-Link router on wood surface. Rear panel shows DC power jack with black cable inserted on left, leftmost Ethernet port with blue cable inserted, three empty Ethernet ports labeled LAN 2, LAN 3, LAN 4, empty blue USB port, and Power button on right.",
+    "devices": [
+     {
+      "ref": "D1",
+      "spec_device_id": "router",
+      "identification_basis": "Glossy black top with white 'tp-link' logo, black external antenna, rear panel with WPS/Reset, silver-framed Ethernet row labeled LAN 2, LAN 3, LAN 4, blue USB and Power button",
+      "identification_certainty": "clear",
+      "visible_side": "rear",
+      "ports_visible": true,
+      "box": {
+       "x1": 20,
+       "y1": 0,
+       "x2": 1000,
+       "y2": 653
+      }
+     }
+    ],
+    "ports": [
+     {
+      "ref": "P1",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "no_label",
+      "occupancy": "cable_inserted",
+      "plug_color": "black",
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 228,
+       "y1": 521,
+       "x2": 318,
+       "y2": 631
+      }
+     },
+     {
+      "ref": "P2",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "no_label",
+      "occupancy": "cable_inserted",
+      "plug_color": "blue",
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 403,
+       "y1": 515,
+       "x2": 511,
+       "y2": 684
+      }
+     },
+     {
+      "ref": "P3",
+      "device_ref": "D1",
+      "label_read": "LAN 2",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 515,
+       "y1": 514,
+       "x2": 594,
+       "y2": 604
+      }
+     },
+     {
+      "ref": "P4",
+      "device_ref": "D1",
+      "label_read": "LAN 3",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 602,
+       "y1": 514,
+       "x2": 686,
+       "y2": 603
+      }
+     },
+     {
+      "ref": "P5",
+      "device_ref": "D1",
+      "label_read": "LAN 4",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 690,
+       "y1": 513,
+       "x2": 775,
+       "y2": 602
+      }
+     },
+     {
+      "ref": "P6",
+      "device_ref": "D1",
+      "label_read": "USB",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 803,
+       "y1": 536,
+       "x2": 909,
+       "y2": 620
+      }
+     }
+    ],
+    "cables": [
+     {
+      "ref": "C1",
+      "color": "black",
+      "path_visibility": "partially_visible",
+      "connected_port_refs": [
+       "P1"
+      ]
+     },
+     {
+      "ref": "C2",
+      "color": "blue",
+      "path_visibility": "partially_visible",
+      "connected_port_refs": [
+       "P2"
+      ]
+     }
+    ],
+    "unreadable_details": [
+     "Router leftmost Ethernet port (likely LAN 1) label text not visible/legible",
+     "Switch device and its port 3 not visible in this photo",
+     "Router front-edge status LEDs not visible in this rear view"
+    ]
+   },
+   "extraction_error": null,
+   "sam": [
+    {
+     "concept": "blue ethernet cable",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        422.0,
+        570.0,
+        692.0,
+        1086.0
+       ],
+       "confidence": 0.921951174736023,
+       "mask_area_px": 42145
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "router",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        34.0,
+        4.0,
+        1448.0,
+        703.0
+       ],
+       "confidence": 0.8241757750511169,
+       "mask_area_px": 505188
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    }
+   ],
+   "device_links": {
+    "D1": {
+     "concept": "router",
+     "sam_object_id": "0",
+     "iou": 0.982,
+     "overlap_px": null,
+     "corroborated": true,
+     "note": "best SAM 'router' box IoU 0.98"
+    }
+   },
+   "port_links": {
+    "P1|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": null,
+     "iou": null,
+     "overlap_px": 0,
+     "corroborated": false,
+     "note": "no SAM 'blue ethernet cable' mask reaches the port region"
+    },
+    "P2|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 22151,
+     "corroborated": true,
+     "note": "SAM 'blue ethernet cable' mask covers 22151px of the port region"
+    }
+   }
+  },
+  "m3": {
+   "image_id": "img_3119dc5616fd",
+   "source_name": "m3_switch_ports_close.png",
+   "width": 1448,
+   "height": 1086,
+   "extraction": {
+    "image_usable": true,
+    "image_issues": [],
+    "shows_inspection_subject": true,
+    "scene_summary": "Close front view of black NETGEAR 5-port Ethernet switch on a wooden surface, green Power LED lit, blue Ethernet cable plugged into the middle port, other four ports empty.",
+    "devices": [
+     {
+      "ref": "D1",
+      "spec_device_id": "switch",
+      "identification_basis": "White 'NETGEAR' wordmark on top, 'Power' label with green LED, row of five Ethernet ports numbered underneath",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": true,
+      "box": {
+       "x1": 5,
+       "y1": 278,
+       "x2": 996,
+       "y2": 705
+      }
+     }
+    ],
+    "ports": [
+     {
+      "ref": "P1",
+      "device_ref": "D1",
+      "label_read": "1",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 248,
+       "y1": 517,
+       "x2": 384,
+       "y2": 631
+      }
+     },
+     {
+      "ref": "P2",
+      "device_ref": "D1",
+      "label_read": "2",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 388,
+       "y1": 517,
+       "x2": 518,
+       "y2": 630
+      }
+     },
+     {
+      "ref": "P3",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "illegible",
+      "occupancy": "cable_inserted",
+      "plug_color": "blue",
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 524,
+       "y1": 515,
+       "x2": 649,
+       "y2": 728
+      }
+     },
+     {
+      "ref": "P4",
+      "device_ref": "D1",
+      "label_read": "4",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 657,
+       "y1": 517,
+       "x2": 791,
+       "y2": 631
+      }
+     },
+     {
+      "ref": "P5",
+      "device_ref": "D1",
+      "label_read": "5",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 795,
+       "y1": 515,
+       "x2": 922,
+       "y2": 630
+      }
+     }
+    ],
+    "cables": [
+     {
+      "ref": "C1",
+      "color": "blue",
+      "path_visibility": "partially_visible",
+      "connected_port_refs": [
+       "P3"
+      ]
+     }
+    ],
+    "unreadable_details": [
+     "Router device not visible, so Router LAN 1 cannot be assessed",
+     "Printed number for Switch port 3 obscured by inserted blue cable"
+    ]
+   },
+   "extraction_error": null,
+   "sam": [
+    {
+     "concept": "blue ethernet cable",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        746.0,
+        550.0,
+        982.0,
+        1086.0
+       ],
+       "confidence": 0.9336099624633789,
+       "mask_area_px": 54293
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "network switch",
+     "status": "ok",
+     "objects": [],
+     "error": null,
+     "diagnostics": []
+    }
+   ],
+   "device_links": {
+    "D1": {
+     "concept": "network switch",
+     "sam_object_id": null,
+     "iou": 0.0,
+     "overlap_px": null,
+     "corroborated": false,
+     "note": "SAM found no 'network switch'"
+    }
+   },
+   "port_links": {
+    "P3|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 36770,
+     "corroborated": true,
+     "note": "SAM 'blue ethernet cable' mask covers 36770px of the port region"
+    }
+   }
+  },
+  "m4": {
+   "image_id": "img_4b265e95aa5a",
+   "source_name": "m4_wide_run.png",
+   "width": 1448,
+   "height": 1086,
+   "extraction": {
+    "image_usable": true,
+    "image_issues": [],
+    "shows_inspection_subject": true,
+    "scene_summary": "A black TP-Link router on the left and a black NETGEAR switch on the right sit on a wooden table. A blue cable loops across the table with one end clearly inserted in the switch third port from the left; the other end disappears under the router with no insertion point visible. Switch ports 1, 2, 4, 5 are empty. Black cable segments run behind the devices.",
+    "devices": [
+     {
+      "ref": "D1",
+      "spec_device_id": "router",
+      "identification_basis": "Glossy black top with white 'tp-link' logo, two black external antennas, row of status LEDs along front edge",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": false,
+      "box": {
+       "x1": 6,
+       "y1": 532,
+       "x2": 437,
+       "y2": 633
+      }
+     },
+     {
+      "ref": "D2",
+      "spec_device_id": "switch",
+      "identification_basis": "Black rectangular box with white 'NETGEAR' wordmark on top, green Power LED on front, silver-framed row of five Ethernet ports numbered 1 to 5",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": true,
+      "box": {
+       "x1": 647,
+       "y1": 510,
+       "x2": 971,
+       "y2": 631
+      }
+     }
+    ],
+    "ports": [
+     {
+      "ref": "P1",
+      "device_ref": "D2",
+      "label_read": "1",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 754,
+       "y1": 591,
+       "x2": 793,
+       "y2": 626
+      }
+     },
+     {
+      "ref": "P2",
+      "device_ref": "D2",
+      "label_read": "2",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 797,
+       "y1": 591,
+       "x2": 836,
+       "y2": 626
+      }
+     },
+     {
+      "ref": "P3",
+      "device_ref": "D2",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "illegible",
+      "occupancy": "cable_inserted",
+      "plug_color": "blue",
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 840,
+       "y1": 592,
+       "x2": 883,
+       "y2": 646
+      }
+     },
+     {
+      "ref": "P4",
+      "device_ref": "D2",
+      "label_read": "4",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 885,
+       "y1": 592,
+       "x2": 922,
+       "y2": 627
+      }
+     },
+     {
+      "ref": "P5",
+      "device_ref": "D2",
+      "label_read": "5",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 926,
+       "y1": 592,
+       "x2": 963,
+       "y2": 627
+      }
+     }
+    ],
+    "cables": [
+     {
+      "ref": "C1",
+      "color": "blue",
+      "path_visibility": "partially_visible",
+      "connected_port_refs": [
+       "P3"
+      ]
+     },
+     {
+      "ref": "C2",
+      "color": "black",
+      "path_visibility": "mostly_hidden",
+      "connected_port_refs": []
+     },
+     {
+      "ref": "C3",
+      "color": "black",
+      "path_visibility": "mostly_hidden",
+      "connected_port_refs": []
+     }
+    ],
+    "unreadable_details": [
+     "Router rear panel including LAN 1 port and labels not visible; rear faces away and insertion point of blue cable under router is occluded",
+     "Switch port 3 number label obscured by inserted blue plug, exact printed text not readable",
+     "Origin and destination of black cables behind devices not visible"
+    ]
+   },
+   "extraction_error": null,
+   "sam": [
+    {
+     "concept": "blue ethernet cable",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        469.0,
+        622.0,
+        1252.0,
+        848.0
+       ],
+       "confidence": 0.9101123809814453,
+       "mask_area_px": 21053
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "network switch",
+     "status": "ok",
+     "objects": [],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "router",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        936.0,
+        503.0,
+        1408.0,
+        683.0
+       ],
+       "confidence": 0.7852349281311035,
+       "mask_area_px": 73817
+      },
+      {
+       "object_id": "1",
+       "box_px": [
+        12.0,
+        229.0,
+        611.0,
+        686.0
+       ],
+       "confidence": 0.9336099624633789,
+       "mask_area_px": 111357
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    }
+   ],
+   "device_links": {
+    "D1": {
+     "concept": "router",
+     "sam_object_id": "1",
+     "iou": 0.233,
+     "overlap_px": null,
+     "corroborated": false,
+     "note": "best SAM 'router' box IoU 0.23"
+    },
+    "D2": {
+     "concept": "network switch",
+     "sam_object_id": null,
+     "iou": 0.0,
+     "overlap_px": null,
+     "corroborated": false,
+     "note": "SAM found no 'network switch'"
+    }
+   },
+   "port_links": {
+    "P3|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 3458,
+     "corroborated": true,
+     "note": "SAM 'blue ethernet cable' mask covers 3458px of the port region"
+    }
+   }
+  },
+  "m5": {
+   "image_id": "img_0907831fdbf8",
+   "source_name": "m5_wrong_port.png",
+   "width": 1448,
+   "height": 1086,
+   "extraction": {
+    "image_usable": true,
+    "image_issues": [],
+    "shows_inspection_subject": true,
+    "scene_summary": "A black TP-Link router on the left and a black NETGEAR 5-port switch on the right sit on a wooden table. A blue Ethernet cable runs from the switch front port 4 across the table and disappears under the front of the router; the router rear ports are not visible.",
+    "devices": [
+     {
+      "ref": "D1",
+      "spec_device_id": "router",
+      "identification_basis": "Glossy black top with white 'tp-link' logo, two black external antennas, row of status LEDs along front edge",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": false,
+      "box": {
+       "x1": 0,
+       "y1": 227,
+       "x2": 436,
+       "y2": 648
+      }
+     },
+     {
+      "ref": "D2",
+      "spec_device_id": "switch",
+      "identification_basis": "Black box with white 'NETGEAR' wordmark on top, green 'Power' LED and row of five Ethernet ports on front",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": true,
+      "box": {
+       "x1": 622,
+       "y1": 463,
+       "x2": 978,
+       "y2": 669
+      }
+     }
+    ],
+    "ports": [
+     {
+      "ref": "P1",
+      "device_ref": "D2",
+      "label_read": "1",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 739,
+       "y1": 597,
+       "x2": 784,
+       "y2": 641
+      }
+     },
+     {
+      "ref": "P2",
+      "device_ref": "D2",
+      "label_read": "2",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 788,
+       "y1": 597,
+       "x2": 833,
+       "y2": 641
+      }
+     },
+     {
+      "ref": "P3",
+      "device_ref": "D2",
+      "label_read": "3",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 837,
+       "y1": 597,
+       "x2": 882,
+       "y2": 641
+      }
+     },
+     {
+      "ref": "P4",
+      "device_ref": "D2",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "illegible",
+      "occupancy": "cable_inserted",
+      "plug_color": "blue",
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 885,
+       "y1": 594,
+       "x2": 932,
+       "y2": 668
+      }
+     },
+     {
+      "ref": "P5",
+      "device_ref": "D2",
+      "label_read": "5",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 935,
+       "y1": 596,
+       "x2": 977,
+       "y2": 640
+      }
+     }
+    ],
+    "cables": [
+     {
+      "ref": "C1",
+      "color": "blue",
+      "path_visibility": "partially_visible",
+      "connected_port_refs": [
+       "P4"
+      ]
+     }
+    ],
+    "unreadable_details": [
+     "Router rear-panel ports including LAN 1 are not visible; labels and occupancy unknown",
+     "Switch port 4 number label is obscured by the inserted blue plug and cannot be read"
+    ]
+   },
+   "extraction_error": null,
+   "sam": [
+    {
+     "concept": "blue ethernet cable",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        457.0,
+        628.0,
+        1305.0,
+        870.0
+       ],
+       "confidence": 0.9179486632347107,
+       "mask_area_px": 25734
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "network switch",
+     "status": "ok",
+     "objects": [],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "router",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        912.0,
+        505.0,
+        1423.0,
+        699.0
+       ],
+       "confidence": 0.7299578189849854,
+       "mask_area_px": 86882
+      },
+      {
+       "object_id": "1",
+       "box_px": [
+        7.0,
+        214.0,
+        612.0,
+        699.0
+       ],
+       "confidence": 0.9298245906829834,
+       "mask_area_px": 118122
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    }
+   ],
+   "device_links": {
+    "D1": {
+     "concept": "router",
+     "sam_object_id": "1",
+     "iou": 0.887,
+     "overlap_px": null,
+     "corroborated": true,
+     "note": "best SAM 'router' box IoU 0.89"
+    },
+    "D2": {
+     "concept": "network switch",
+     "sam_object_id": null,
+     "iou": 0.0,
+     "overlap_px": null,
+     "corroborated": false,
+     "note": "SAM found no 'network switch'"
+    }
+   },
+   "port_links": {
+    "P4|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 4558,
+     "corroborated": true,
+     "note": "SAM 'blue ethernet cable' mask covers 4558px of the port region"
+    }
+   }
+  },
+  "m6": {
+   "image_id": "img_7888c223a7fc",
+   "source_name": "m6_occluded.png",
+   "width": 1448,
+   "height": 1086,
+   "extraction": {
+    "image_usable": true,
+    "image_issues": [
+     "hand obscuring left and center front-panel ports and port number labels"
+    ],
+    "shows_inspection_subject": true,
+    "scene_summary": "Close-up of a black NETGEAR switch on a wooden surface with a hand inserting a blue Ethernet cable into the middle front-panel port. Two right-side ports labeled 4 and 5 are empty. Left-side ports are partially obscured by the hand.",
+    "devices": [
+     {
+      "ref": "D1",
+      "spec_device_id": "switch",
+      "identification_basis": "white NETGEAR wordmark on top, black rectangular box with silver-framed row of five Ethernet ports",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": true,
+      "box": {
+       "x1": 32,
+       "y1": 250,
+       "x2": 980,
+       "y2": 681
+      }
+     }
+    ],
+    "ports": [
+     {
+      "ref": "P1",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "illegible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "occluded",
+      "box": {
+       "x1": 243,
+       "y1": 496,
+       "x2": 355,
+       "y2": 583
+      }
+     },
+     {
+      "ref": "P2",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "illegible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "partial",
+      "box": {
+       "x1": 362,
+       "y1": 498,
+       "x2": 475,
+       "y2": 588
+      }
+     },
+     {
+      "ref": "P3",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "illegible",
+      "occupancy": "cable_inserted",
+      "plug_color": "blue",
+      "insertion_visibility": "partial",
+      "box": {
+       "x1": 512,
+       "y1": 498,
+       "x2": 627,
+       "y2": 615
+      }
+     },
+     {
+      "ref": "P4",
+      "device_ref": "D1",
+      "label_read": "4",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 630,
+       "y1": 497,
+       "x2": 743,
+       "y2": 591
+      }
+     },
+     {
+      "ref": "P5",
+      "device_ref": "D1",
+      "label_read": "5",
+      "label_group": null,
+      "label_legibility": "legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 748,
+       "y1": 495,
+       "x2": 862,
+       "y2": 590
+      }
+     }
+    ],
+    "cables": [
+     {
+      "ref": "C1",
+      "color": "blue",
+      "path_visibility": "partially_visible",
+      "connected_port_refs": [
+       "P3"
+      ]
+     },
+     {
+      "ref": "C2",
+      "color": "black",
+      "path_visibility": "mostly_hidden",
+      "connected_port_refs": []
+     }
+    ],
+    "unreadable_details": [
+     "Switch port numbers 1, 2, 3 labels obscured by hand and cannot be read",
+     "Switch Power LED not visible due to hand/crop",
+     "Router device and Router LAN 1 port not visible in this photo"
+    ]
+   },
+   "extraction_error": null,
+   "sam": [
+    {
+     "concept": "blue ethernet cable",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        570.0,
+        549.0,
+        869.0,
+        1086.0
+       ],
+       "confidence": 0.949367105960846,
+       "mask_area_px": 38018
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "network switch",
+     "status": "ok",
+     "objects": [],
+     "error": null,
+     "diagnostics": []
+    }
+   ],
+   "device_links": {
+    "D1": {
+     "concept": "network switch",
+     "sam_object_id": null,
+     "iou": 0.0,
+     "overlap_px": null,
+     "corroborated": false,
+     "note": "SAM found no 'network switch'"
+    }
+   },
+   "port_links": {
+    "P3|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 8233,
+     "corroborated": true,
+     "note": "SAM 'blue ethernet cable' mask covers 8233px of the port region"
+    }
+   }
+  },
+  "m7": {
+   "image_id": "img_4d3f6768c11c",
+   "source_name": "m7_router_rear_far.png",
+   "width": 1448,
+   "height": 1086,
+   "extraction": {
+    "image_usable": true,
+    "image_issues": [],
+    "shows_inspection_subject": true,
+    "scene_summary": "Rear view of black TP-Link router on left and front view of black NETGEAR switch on right on a wooden table, linked by a blue Ethernet cable from the leftmost router LAN port to switch port 3.",
+    "devices": [
+     {
+      "ref": "D1",
+      "spec_device_id": "router",
+      "identification_basis": "Black box with two external rear antennas, tp-link logo on top, rear row of Ethernet ports and blue USB port",
+      "identification_certainty": "clear",
+      "visible_side": "rear",
+      "ports_visible": true,
+      "box": {
+       "x1": 126,
+       "y1": 260,
+       "x2": 492,
+       "y2": 533
+      }
+     },
+     {
+      "ref": "D2",
+      "spec_device_id": "switch",
+      "identification_basis": "Black box with white NETGEAR wordmark on top, front row of five Ethernet ports, green Power LED on left",
+      "identification_certainty": "clear",
+      "visible_side": "front",
+      "ports_visible": true,
+      "box": {
+       "x1": 699,
+       "y1": 474,
+       "x2": 963,
+       "y2": 593
+      }
+     }
+    ],
+    "ports": [
+     {
+      "ref": "P1",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": "LAN",
+      "label_legibility": "illegible",
+      "occupancy": "cable_inserted",
+      "plug_color": "blue",
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 257,
+       "y1": 480,
+       "x2": 295,
+       "y2": 523
+      }
+     },
+     {
+      "ref": "P2",
+      "device_ref": "D1",
+      "label_read": "LAN 2",
+      "label_group": "LAN",
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 293,
+       "y1": 482,
+       "x2": 325,
+       "y2": 510
+      }
+     },
+     {
+      "ref": "P3",
+      "device_ref": "D1",
+      "label_read": "LAN 3",
+      "label_group": "LAN",
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 327,
+       "y1": 482,
+       "x2": 359,
+       "y2": 510
+      }
+     },
+     {
+      "ref": "P4",
+      "device_ref": "D1",
+      "label_read": "LAN 4",
+      "label_group": "LAN",
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 360,
+       "y1": 482,
+       "x2": 390,
+       "y2": 509
+      }
+     },
+     {
+      "ref": "P5",
+      "device_ref": "D1",
+      "label_read": "USB",
+      "label_group": null,
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 414,
+       "y1": 488,
+       "x2": 443,
+       "y2": 512
+      }
+     },
+     {
+      "ref": "P6",
+      "device_ref": "D1",
+      "label_read": null,
+      "label_group": null,
+      "label_legibility": "illegible",
+      "occupancy": "cable_inserted",
+      "plug_color": "black",
+      "insertion_visibility": "partial",
+      "box": {
+       "x1": 189,
+       "y1": 502,
+       "x2": 232,
+       "y2": 532
+      }
+     },
+     {
+      "ref": "P7",
+      "device_ref": "D2",
+      "label_read": "1",
+      "label_group": null,
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 752,
+       "y1": 543,
+       "x2": 786,
+       "y2": 577
+      }
+     },
+     {
+      "ref": "P8",
+      "device_ref": "D2",
+      "label_read": "2",
+      "label_group": null,
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 793,
+       "y1": 544,
+       "x2": 830,
+       "y2": 577
+      }
+     },
+     {
+      "ref": "P9",
+      "device_ref": "D2",
+      "label_read": "3",
+      "label_group": null,
+      "label_legibility": "partially_legible",
+      "occupancy": "cable_inserted",
+      "plug_color": "blue",
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 833,
+       "y1": 544,
+       "x2": 872,
+       "y2": 586
+      }
+     },
+     {
+      "ref": "P10",
+      "device_ref": "D2",
+      "label_read": "4",
+      "label_group": null,
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 875,
+       "y1": 545,
+       "x2": 908,
+       "y2": 576
+      }
+     },
+     {
+      "ref": "P11",
+      "device_ref": "D2",
+      "label_read": "5",
+      "label_group": null,
+      "label_legibility": "partially_legible",
+      "occupancy": "empty",
+      "plug_color": null,
+      "insertion_visibility": "clear",
+      "box": {
+       "x1": 912,
+       "y1": 545,
+       "x2": 946,
+       "y2": 575
+      }
+     }
+    ],
+    "cables": [
+     {
+      "ref": "C1",
+      "color": "blue",
+      "path_visibility": "fully_traced",
+      "connected_port_refs": [
+       "P1",
+       "P9"
+      ]
+     },
+     {
+      "ref": "C2",
+      "color": "black",
+      "path_visibility": "partially_visible",
+      "connected_port_refs": [
+       "P6"
+      ]
+     },
+     {
+      "ref": "C3",
+      "color": "black",
+      "path_visibility": "mostly_hidden",
+      "connected_port_refs": []
+     }
+    ],
+    "unreadable_details": [
+     "Exact printed text for router leftmost Ethernet port occluded by blue plug; presumed LAN 1 but not legible",
+     "Router DC power jack label text not legible",
+     "Switch port numbers 1-5 and router LAN 2-4 / USB labels are small and only partially legible"
+    ]
+   },
+   "extraction_error": null,
+   "sam": [
+    {
+     "concept": "blue ethernet cable",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        353.0,
+        545.0,
+        1254.0,
+        799.0
+       ],
+       "confidence": 0.9259259104728699,
+       "mask_area_px": 23947
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "network switch",
+     "status": "ok",
+     "objects": [],
+     "error": null,
+     "diagnostics": []
+    },
+    {
+     "concept": "router",
+     "status": "ok",
+     "objects": [
+      {
+       "object_id": "0",
+       "box_px": [
+        982.0,
+        501.0,
+        1371.0,
+        634.0
+       ],
+       "confidence": 0.8518518805503845,
+       "mask_area_px": 44694
+      },
+      {
+       "object_id": "1",
+       "box_px": [
+        188.0,
+        255.0,
+        672.0,
+        591.0
+       ],
+       "confidence": 0.921951174736023,
+       "mask_area_px": 59042
+      }
+     ],
+     "error": null,
+     "diagnostics": []
+    }
+   ],
+   "device_links": {
+    "D1": {
+     "concept": "router",
+     "sam_object_id": "1",
+     "iou": 0.815,
+     "overlap_px": null,
+     "corroborated": true,
+     "note": "best SAM 'router' box IoU 0.82"
+    },
+    "D2": {
+     "concept": "network switch",
+     "sam_object_id": null,
+     "iou": 0.0,
+     "overlap_px": null,
+     "corroborated": false,
+     "note": "SAM found no 'network switch'"
+    }
+   },
+   "port_links": {
+    "P1|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 1372,
+     "corroborated": true,
+     "note": "SAM 'blue ethernet cable' mask covers 1372px of the port region"
+    },
+    "P6|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 290,
+     "corroborated": false,
+     "note": "SAM 'blue ethernet cable' mask covers 290px of the port region"
+    },
+    "P9|blue ethernet cable": {
+     "concept": "blue ethernet cable",
+     "sam_object_id": "0",
+     "iou": null,
+     "overlap_px": 2010,
+     "corroborated": true,
+     "note": "SAM 'blue ethernet cable' mask covers 2010px of the port region"
+    }
+   }
+  }
+ }
+}

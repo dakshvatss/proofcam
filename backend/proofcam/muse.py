@@ -92,35 +92,49 @@ _FALLBACK: dict[str, tuple[CameraAction, str]] = {
 }
 
 
-def fallback_plan(gap: Gap) -> NextViewPlan:
-    action, tmpl = _FALLBACK[gap.code]
+_HIDDEN_LABEL = ("move_closer", "The printed label for {port_label} on the {device} appears to be hidden by the "
+                                 "inserted plug. Move close and photograph that port row from a low, angled position "
+                                 "so the label next to the plug is readable, keeping the neighbouring port labels "
+                                 "in the same frame.")
+
+
+def fallback_plan(gap: Gap, previous_requests: list[str] | None = None) -> NextViewPlan:
+    action, tmpl = _HIDDEN_LABEL if gap.context.get("label_hidden_by_plug") else _FALLBACK[gap.code]
     fields = {"target": gap.target, "device": gap.context.get("device", "device"),
-              "device_description": gap.context.get("device_description", ""),
+              # First clause only: "Black TP-Link Wi-Fi router: glossy ..." -> "Black TP-Link Wi-Fi router"
+              "device_description": gap.context.get("device_description", "").split(":")[0].split(".")[0][:80],
               "port_label": gap.context.get("port_label", "")}
-    return NextViewPlan(instruction=tmpl.format(**fields), camera_action=action, target_region=gap.target,
+    instruction = tmpl.format(**fields)
+    if previous_requests:
+        instruction += " The previous view did not resolve this; use a different angle or distance than before."
+    return NextViewPlan(instruction=instruction, camera_action=action, target_region=gap.target,
                         rationale=gap.missing_fact,
                         success_criteria=f"{gap.target} clearly visible and readable in the next photo.",
                         visually_resolvable=True, unresolvable_reason=None)
 
 
 async def plan_next_view(client: MetaClient, spec: InspectionSpec, gap: Gap, image: NormalizedImage | None,
-                         recent_notes: list[str], request_id: str) -> tuple[NextViewRequest, NextViewPlan]:
+                         recent_notes: list[str], request_id: str, *, evidence_state: list[str] | None = None,
+                         previous_requests: list[str] | None = None, latest_image_id: str | None = None,
+                         ) -> tuple[NextViewRequest, NextViewPlan]:
     plan, planner, err = None, "muse", None
     if image is not None:
         try:
+            text = plan_user_text(spec, gap, recent_notes, evidence_state or [], previous_requests or [])
             plan = await _structured(client, NextViewPlan, system=PLAN_SYSTEM,
-                                     user=_image_message(plan_user_text(spec, gap, recent_notes), image),
+                                     user=_image_message(text, image),
                                      image=image, purpose="muse_plan")
         except (MetaAPIError, ModelOutputError) as e:
             err = str(e)
     if plan is None:
-        plan, planner = fallback_plan(gap), "deterministic_fallback"
+        plan, planner = fallback_plan(gap, previous_requests), "deterministic_fallback"
     req = NextViewRequest(id=request_id, requirement_id=gap.requirement_id, gap_code=gap.code,
                           missing_fact=gap.missing_fact, target_region=plan.target_region,
                           camera_action=plan.camera_action, instruction=plan.instruction,
                           rationale=plan.rationale, success_criteria=plan.success_criteria,
                           planner=planner, based_on_image_id=image.image_id if image else None,
-                          planner_error=err)
+                          after_image_id=latest_image_id or (image.image_id if image else None),
+                          gap_key=gap.key, planner_error=err)
     return req, plan
 
 

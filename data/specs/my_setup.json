@@ -6,13 +6,15 @@
       "id": "router",
       "name": "Router",
       "description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
-      "sam_concept": "router"
+      "sam_concept": "router",
+      "port_rows": [["LAN 1", "LAN 2", "LAN 3", "LAN 4"]]
     },
     {
       "id": "switch",
       "name": "Switch",
       "description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
-      "sam_concept": "network switch"
+      "sam_concept": "network switch",
+      "port_rows": [["1", "2", "3", "4", "5"]]
     }
   ],
   "requirements": [

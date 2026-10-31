@@ -42,6 +42,9 @@ class ObservationRecord(BaseModel):
     width: int
     height: int
     responding_to: str | None = Field(None, description="NextViewRequest id this capture answered.")
+    # Installation configuration this photo belongs to. Incremented only by an explicit
+    # InspectionAgent.mark_installation_changed(); the policy assesses the current epoch only.
+    epoch: int = 0
     extraction: ObservationExtraction | None
     extraction_error: str | None = None
     sam: list[SamGrounding] = Field(default_factory=list)
@@ -69,6 +72,9 @@ GapCode = Literal[
 ]
 
 
+PortIdentityBasis = Literal["direct_label", "layout_inference"]
+
+
 class EvidenceItem(BaseModel):
     seq: int
     image_id: str
@@ -76,6 +82,8 @@ class EvidenceItem(BaseModel):
     device_ref: str | None = None
     claim: str
     grounding: GroundingLink | None = None
+    # How the port in this item was identified (None for non-port evidence such as a cable trace).
+    port_basis: PortIdentityBasis | None = None
 
 
 class Gap(BaseModel):
@@ -98,6 +106,9 @@ class EndpointAssessment(BaseModel):
     state: EndpointState
     support: list[EvidenceItem] = Field(default_factory=list)
     conflicts: list[EvidenceItem] = Field(default_factory=list)
+    # Plug evidence at a port identified only by layout inference while the requirement does not permit
+    # inference. Recorded for audit and guidance; never counted as support.
+    inferred_only: list[EvidenceItem] = Field(default_factory=list)
     gap: Gap | None = None
 
 
@@ -124,5 +135,7 @@ class NextViewRequest(BaseModel):
     rationale: str
     success_criteria: str
     planner: Literal["muse", "deterministic_fallback"]
-    based_on_image_id: str | None
+    based_on_image_id: str | None = Field(description="Image shown to the planner (None for template plans).")
+    after_image_id: str | None = Field(None, description="Photo after which this request was issued.")
+    gap_key: str | None = None
     planner_error: str | None = None

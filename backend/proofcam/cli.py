@@ -3,8 +3,11 @@
   python -m proofcam.cli --spec ../data/specs/router_switch.json --image a.jpg [--image b.jpg ...]
   python -m proofcam.cli --spec ... --image a.jpg --interactive   # prompts for each follow-up photo path
 
-Images are consumed in order: the first is the initial observation, each later one is treated as the
-user's response to the previous next-view request.
+Photos may be supplied in any order: one persistent agent accumulates the evidence, and each photo is
+recorded as answering the most recent next-view request. Static verification is assumed (all photos show
+one unchanged installation; a clear violation ends the inspection). In --interactive mode, type
+  !changed <reason>
+after physically changing the installation: earlier photos then stop counting as evidence.
 """
 
 from __future__ import annotations
@@ -51,16 +54,27 @@ async def run(args: argparse.Namespace) -> int:
     run_dir = Path(args.out) / run_id
     try:
         i = 0
-        while not agent.done:
-            if i < len(paths):
+        while True:
+            if i < len(paths) and not agent.done:
                 path = paths[i]
+                i += 1
             elif args.interactive:
-                path = input("\nPath to next photo (blank to stop): ").strip().strip('"')
+                path = input("\nPath to next photo (blank to stop; '!changed <reason>' after a physical change): "
+                             ).strip().strip('"')
                 if not path:
                     break
+                if path.startswith("!changed"):
+                    try:
+                        agent.mark_installation_changed(path[len("!changed"):].strip() or "declared by user")
+                        print("  installation change recorded; earlier photos no longer count as evidence")
+                    except RuntimeError as e:
+                        print(f"  cannot reopen: {e}")
+                    continue
+                if agent.done:
+                    print(f"  inspection stopped ({agent.stop_reason}); declare a change with !changed to continue")
+                    continue
             else:
                 break
-            i += 1
             try:
                 img = load_image(path, settings.image_max_side)
             except ImageLoadError as e:

@@ -191,3 +191,47 @@ def test_report_written(tmp_path):
     assert len(list((tmp_path / "run1" / "overlays").glob("*.jpg"))) == 2
     lines = (tmp_path / "run1" / "trace.jsonl").read_text(encoding="utf-8").splitlines()
     assert all("base64" not in ln for ln in lines)
+
+
+ROUTER_CLOSE = extraction(devices=[device("D1", "router")], ports=[port("P1", "D1", "1", group="LAN")])
+SWITCH_CLOSE = extraction(devices=[device("D1", "switch")], ports=[port("P1", "D1", "3")])
+WIDE_TRACE = extraction(  # labels legible, insertion only partial: identity evidence only
+    devices=[device("D1", "router", box=(50, 100, 450, 600)), device("D2", "switch", box=(550, 100, 950, 600))],
+    ports=[port("P1", "D1", "1", group="LAN", vis="partial"), port("P2", "D2", "3", vis="partial")],
+    cables=[cable("C1", "blue", ["P1", "P2"], path="fully_traced")])
+
+
+@pytest.mark.parametrize("order", [(0, 1, 2), (1, 2, 0), (2, 0, 1)])
+def test_live_path_accumulates_complementary_photos_in_any_order(order):
+    photos = [("router.jpg", ROUTER_CLOSE), ("switch.jpg", SWITCH_CLOSE), ("wide.jpg", WIDE_TRACE)]
+    fm = base_fake()
+    fm.queue_chat(OBS, *[photos[i][1] for i in order])
+    fm.queue_chat(PLAN, plan("Step back and photograph the next part of the installation clearly."),
+                  plan("Step back and photograph the next part of the installation clearly."))
+    ag = agent_with(fm)
+    steps = [observe(ag, photos[i][0]) for i in order]
+    a = steps[-1].assessments[0]
+    assert [s.stop_reason for s in steps] == [None, None, "all_requirements_resolved"]
+    assert a.status == "VERIFIED", a.explanation
+    names = {o.seq: o.source_name for o in ag.observations}
+    assert {names[s.seq] for s in a.endpoints[0].support} == {"router.jpg"}
+    assert {names[s.seq] for s in a.endpoints[1].support} == {"switch.jpg"}
+    assert {names[x.seq] for x in a.identity_evidence} == {"wide.jpg"}
+    # The planner is told what is already established.
+    plan_bodies = [json.loads(r.content) for r in fm.requests if r.url.path.endswith("/chat/completions")
+                   and json.loads(r.content)["response_format"]["json_schema"]["name"] == PLAN]
+    texts = [m["content"][0]["text"] for b in plan_bodies for m in b["messages"] if m["role"] == "user"]
+    assert texts and all("evidence_already_established" in t for t in texts)
+
+
+def test_planner_is_told_previous_failed_requests_for_the_same_gap():
+    fm = base_fake()
+    fm.queue_chat(OBS, FRONT, FRONT)
+    fm.queue_chat(PLAN, plan("Walk around to the back of the router and frame its port row."),
+                  plan("Kneel and look at the router rear from the left side instead."))
+    ag = agent_with(fm)
+    observe(ag, "a.jpg")
+    observe(ag, "b.jpg")
+    last = [r for r in fm.requests if r.url.path.endswith("/chat/completions")][-1]
+    text = json.loads(last.content)["messages"][1]["content"][0]["text"]
+    assert "Walk around to the back of the router" in json.loads(text)["previous_requests_for_this_gap"][0]

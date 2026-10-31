@@ -48,17 +48,26 @@ Rules:
   visible now (e.g. "walk around to the back of the black router on the left").
 - Name the exact object/port/label that must be in frame and readable.
 - Never say just "take another picture".
+- "evidence_already_established" is authoritative. Never ask for a view of something already established;
+  target only the gap given.
+- "previous_requests_for_this_gap" were already tried and did NOT close the gap. Do not repeat them; choose a
+  clearly different position, angle or distance.
+- If a port's label is hidden by an inserted plug, ask for an angle that shows the label beside the plug, and
+  keep the neighbouring port labels in frame.
 - If the gap cannot be closed by any photo (e.g. the cable runs inside a wall), set visually_resolvable
   to false and explain why.
 - Do not claim anything is verified. You only plan the next view."""
 
 
-def plan_user_text(spec: InspectionSpec, gap: Gap, recent_notes: list[str]) -> str:
+def plan_user_text(spec: InspectionSpec, gap: Gap, recent_notes: list[str],
+                   evidence_state: list[str] | None = None, previous_requests: list[str] | None = None) -> str:
     req = spec.requirement(gap.requirement_id)
     return json.dumps({
         "requirement": req.text,
         "gap": {"code": gap.code, "target": gap.target, "missing_fact": gap.missing_fact,
                 "context": gap.context},
+        "evidence_already_established": evidence_state or [],
+        "previous_requests_for_this_gap": previous_requests or [],
         "what_recent_photos_showed": recent_notes,
         "task": "Plan the next camera view for the latest photo shown.",
     }, indent=1)
