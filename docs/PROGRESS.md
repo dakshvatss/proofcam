@@ -1,5 +1,22 @@
 # Progress log
 
+## 2026-10-31 — Own-setup inspection spec (`data/specs/my_setup.json`)
+
+No live API calls; no inspection run. Spec authored from the user's photos `data/images/m1–m7` (gitignored, not
+committed). Requirement R1 (blue Ethernet cable, Router LAN 1 → Switch Port 3, `require_trace`) is user-defined.
+
+Transcribed (m1–m4 only): router = black TP-Link (logo on top), glossy top, two black external antennas, front LED
+row; rear: DC jack, `WPS/Reset`, four silver-framed RJ45 ports, blue `USB`, `Power` button. Printed `LAN 2`/`LAN 3`/
+`LAN 4` are legible (m2); **the leftmost port's printed label is hidden by the plug in m2 (and m7) — UNKNOWN**, so
+`LAN 1` is the user's label and no aliases were added. Switch = black NETGEAR (wordmark on top), `Power` LED, five
+ports printed `1`–`5` (port `3` legible in m1, covered by the plug in m3). Model numbers: not visible on either
+device — omitted. Cable: blue jacket; transparent plug head with blue boot (m2, m3). Other cables: black power cords
+only; no second Ethernet cable visible in m1–m4. Note: the fourth file is named `m4_wide_run.jpg.png`.
+
+Local validation: spec parses (`LAN 1`→`LAN1`, `3`→`3`); all seven photos load via `images.load_image()` at
+1448×1086 (unchanged). Privacy check (all seven viewed): no legible Wi-Fi password, serial number, MAC address or
+other private text; m6 shows the user's hand. Unit tests: 52 passed, 1 deselected.
+
 ## 2026-10-31 — Milestone 0: live Meta API validation
 
 ### Environment
