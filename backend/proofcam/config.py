@@ -31,6 +31,9 @@ class Settings:
     api_base: str = "https://api.meta.ai/v1"
     muse_model: str = "muse-spark-1.3"
     sam_model: str = "sam-3.1"
+    # Chat Completions top-level `reasoning_effort` (minimal|low|medium|high|xhigh|max; "none" -> 400 on Spark).
+    # None = omit the parameter and use the API default.
+    muse_reasoning_effort: str | None = None
     muse_timeout_s: float = 120.0
     sam_timeout_s: float = 90.0
     max_retries: int = 2
@@ -54,4 +57,5 @@ class Settings:
             api_base=os.environ.get("PROOFCAM_API_BASE", cls.api_base),
             muse_model=os.environ.get("PROOFCAM_MUSE_MODEL", cls.muse_model),
             sam_model=os.environ.get("PROOFCAM_SAM_MODEL", cls.sam_model),
+            muse_reasoning_effort=os.environ.get("PROOFCAM_MUSE_REASONING_EFFORT") or None,
         )

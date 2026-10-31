@@ -43,6 +43,8 @@ _COLOR_WORDS = {
     "white": "white", "black": "black",
     "gray": "gray", "grey": "gray", "silver": "gray",
     "brown": "brown",
+    # Kept distinct from white: a beige plug must not satisfy a "white cable" requirement or vice versa.
+    "beige": "beige", "cream": "beige", "tan": "beige", "khaki": "beige", "ivory": "beige",
 }
 
 

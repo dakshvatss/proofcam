@@ -1,0 +1,13 @@
+{
+  "id": "ref_s01_white_rear",
+  "title": "REF S01 white router rear: LAN 1 to switch port 3 (single reference photo)",
+  "devices": [
+    {"id": "router", "name": "White router", "description": "White router with two black antennas; rear panel has a blue port and a row of orange ports.", "sam_concept": "router"},
+    {"id": "switch", "name": "Switch", "description": "Small Ethernet switch (not expected in this photo).", "sam_concept": "network switch"}
+  ],
+  "requirements": [
+    {"id": "R1", "kind": "connection", "text": "A blue Ethernet cable must connect White router LAN 1 to Switch port 3.",
+     "cable_color": "blue", "cable_type": "ethernet cable",
+     "endpoints": [{"device_id": "router", "port_label": "LAN 1"}, {"device_id": "switch", "port_label": "3"}]}
+  ]
+}

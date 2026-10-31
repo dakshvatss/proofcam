@@ -1,0 +1,13 @@
+{
+  "id": "ref_s04_blue_cable",
+  "title": "REF S04 modem ETHERNET port to computer (single reference photo)",
+  "devices": [
+    {"id": "modem", "name": "White modem", "description": "White modem/router whose rear panel has ports labelled DSL, USB and ETHERNET.", "sam_concept": "modem"},
+    {"id": "computer", "name": "Computer", "description": "Desktop or laptop computer with an Ethernet port (not expected in this photo).", "sam_concept": "laptop"}
+  ],
+  "requirements": [
+    {"id": "R1", "kind": "connection", "text": "A blue Ethernet cable must connect the modem's ETHERNET port to the computer's Ethernet port.",
+     "cable_color": "blue", "cable_type": "ethernet cable",
+     "endpoints": [{"device_id": "modem", "port_label": "ETHERNET"}, {"device_id": "computer", "port_label": "ETHERNET"}]}
+  ]
+}

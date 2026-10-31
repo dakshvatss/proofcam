@@ -1,0 +1,13 @@
+{
+  "id": "ref_s05_laptop_router",
+  "title": "REF S05 black router LAN 1 to laptop Ethernet (single reference photo)",
+  "devices": [
+    {"id": "router", "name": "Black router", "description": "Small black router with a row of yellow Ethernet ports on the rear.", "sam_concept": "router"},
+    {"id": "laptop", "name": "Laptop", "description": "Dark grey laptop with an Ethernet port on its side.", "sam_concept": "laptop"}
+  ],
+  "requirements": [
+    {"id": "R1", "kind": "connection", "text": "A beige Ethernet cable must connect Black router LAN 1 to the laptop's Ethernet port.",
+     "cable_color": "beige", "cable_type": "ethernet cable",
+     "endpoints": [{"device_id": "router", "port_label": "LAN 1"}, {"device_id": "laptop", "port_label": "ETHERNET"}]}
+  ]
+}

@@ -3,7 +3,8 @@
 Status legend: **DOC** = stated in official docs (fetched 2026-10-30) · **SRC** = read from the
 `meta-sam-parser` 0.1.0 source · **LIVE** = confirmed by a real call from this repo · **UNVERIFIED** = assumption.
 
-No LIVE entries yet: no `MODEL_API_KEY` was available during Milestone 0 implementation.
+LIVE entries come from runs on 2026-10-31 (probe `runs/probe-20261031-133004.json`; scenarios
+`runs/scenarios-20261031-13*`). 40 real calls (21 Muse, 19 SAM), est. total ≈ $0.20.
 
 Docs are available as raw markdown: `https://dev.meta.ai/docs/<path>.md`; index `https://dev.meta.ai/llms.txt`.
 
@@ -30,7 +31,7 @@ Docs are available as raw markdown: `https://dev.meta.ai/docs/<path>.md`; index 
 | Response text at `choices[0].message.content`; `usage` has `prompt_tokens`, `completion_tokens` | DOC |
 | ~1280px image ≈ 1,300–1,500 input tokens; exact count via `POST /v1/responses/input_tokens` | DOC |
 | **Perception grounding:** positions on a normalized **0–1000** grid of the sent image, (0,0) top-left, x right, y down; coordinates relative to the image actually sent | DOC |
-| Muse Spark 1.3 supports reasoning effort (Responses `reasoning.effort`); Chat Completions parameter name not checked — we use the default | DOC / UNVERIFIED |
+| Reasoning: Chat Completions top-level `reasoning_effort` (`minimal`…`max`); Responses `reasoning.effort`; `"none"` → 400 on Spark. Reasoning tokens are billed as output | DOC |
 
 ## Muse Spark — structured output
 | Fact | Status |
@@ -67,7 +68,30 @@ Docs are available as raw markdown: `https://dev.meta.ai/docs/<path>.md`; index 
 | `decode_mask_to_raster(mask)` → row-major bytes of 0/1, length W×H | DOC/SRC |
 | Parser does not expose the wire `w`/`h`; we regex them from `raw_output` and discard geometry if they differ from the sent image size | SRC |
 
-## Open questions to settle with the first live run
+## LIVE results (2026-10-31)
+| Fact | Status |
+|---|---|
+| Bearer auth with `MODEL_API_KEY`, base URL, `muse-spark-1.3` and `sam-3.1` all work for this account | LIVE |
+| Chat Completions + `image_url` data URL (PNG→JPEG normalized) + `response_format` json_schema works; our 3.8 KB schema (inlined refs, `anyOf` null, enums, `additionalProperties:false`) accepted; output validated first time in all 20 structured Muse calls (no repair needed) | LIVE |
+| `usage` returns `prompt_tokens`, `completion_tokens`, `completion_tokens_details.reasoning_tokens`, `prompt_tokens_details.cached_tokens` | LIVE |
+| Hidden reasoning dominates output: e.g. 930 of 977 completion tokens on a tiny image call; 1,100–3,300 completion tokens per observation at default effort | LIVE |
+| Default effort latency: Muse observe 8.2–44.1 s (median ~16 s), plan 6.7–9.2 s; `reasoning_effort:"low"`: observe 4.5–19.2 s, plan 2.8–4.4 s; per-photo wall 25–48 s (default) vs 6–29 s (low) | LIVE |
+| SAM 3.1 streaming works; latency 0.8–8.1 s per concept (typ. 1.3–4 s); requests for different concepts run concurrently | LIVE |
+| SAM `w`/`h` echoed equal to the normalized image size we sent (395×236, 1085×606, 282×198, …) | LIVE |
+| SAM mask raster H×W equalled the inclusive box size in every observed record (e.g. box 267..394 × 111..172 → `data=62,128`) | LIVE |
+| Zero-match case (e.g. "blue ethernet cable" on a photo with no cable) returned an empty result through our special-case path, no error | LIVE |
+| Confidence `c` present with `include_confidence:"true"`; observed 0.64–0.96 | LIVE |
+| `response.completed` `usage` for SAM is null/absent | LIVE |
+| SAM "router" masks include antennas → box IoU vs Muse's body-only box can be low (0.32) even when both are right | LIVE |
+| Muse 0–1000 boxes: good at device scale (IoU 0.75–0.95 vs SAM); at port scale can be offset by ~one port width | LIVE |
+| Muse claims vary run to run (e.g. cable "beige" vs "off-white"; `fully_traced` vs `partially_visible`; label `illegible` vs `no_label`) | LIVE |
+
+## Open questions (remaining)
+1. Same-device multi-view behaviour on real captures (not yet tested).
+2. Whether a SAM port concept (e.g. "ethernet port") gives precise port boxes to replace Muse port boxes.
+3. Run-to-run stability rates (needs repeated runs per image).
+
+## Original open questions (now answered above)
 1. Does `response_format` accept our schema (inlined, `anyOf` nullables, ~3.8 KB)? (`probe_api.py`)
 2. Real latency of Muse observation and SAM per image at 1600px.
 3. Does SAM's mask raster ever differ from its box size (we handle it either way)?

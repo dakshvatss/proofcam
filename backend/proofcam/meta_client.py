@@ -152,6 +152,8 @@ class MetaClient:
             "response_format": {"type": "json_schema",
                                 "json_schema": {"name": schema_name, "schema": schema}},
         }
+        if self.s.muse_reasoning_effort:
+            payload["reasoning_effort"] = self.s.muse_reasoning_effort
 
         async def call():
             r = await self._http.post("/chat/completions", json=payload, timeout=self.s.muse_timeout_s)

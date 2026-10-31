@@ -48,3 +48,13 @@ with the FastAPI backend in Milestone 1. `runs/` is git-ignored (private photos)
 
 ## D10 — Async core (2026-10-30)
 The agent and client are async so FastAPI can call them directly and SAM concepts run concurrently.
+
+## D11 — Reasoning effort is configurable, default unchanged (2026-10-31)
+Live runs: `reasoning_effort=low` cut per-photo wall time ~2× (25–48 s → 6–29 s) with identical verdicts on the
+five reference images. Added `PROOFCAM_MUSE_REASONING_EFFORT` (unset = API default). Choosing a default for the
+live camera app needs same-device multi-view data and repeated runs; decide in Milestone 1.
+
+## D12 — Reference images are independent scenarios (2026-10-31)
+The five reference photos come from different setups. Each runs with its own spec and a fresh agent
+(`experiments/run_scenarios.py`, `data/specs/reference/`). They validate API integration and single-photo
+perception/abstention only; they cannot demonstrate multi-view inspection.
