@@ -37,6 +37,18 @@ class Trace:
     def __init__(self) -> None:
         self.events: list[TraceEvent] = []
 
+    @classmethod
+    def from_events(cls, events: list[TraceEvent] | list[dict[str, Any]]) -> Trace:
+        """Rebuild a persisted trace. Events must be the complete, contiguous sequence 0..n-1 so that
+        new events continue the numbering; anything else means the stored trace is incomplete."""
+        t = cls()
+        t.events = [e.model_copy(deep=True) if isinstance(e, TraceEvent) else TraceEvent.model_validate(e)
+                    for e in events]
+        seqs = [e.seq for e in t.events]
+        if seqs != list(range(len(seqs))):
+            raise ValueError(f"trace events are not a contiguous 0..n-1 sequence (got {seqs[:10]}...)")
+        return t
+
     def add(self, kind: TraceKind, name: str, **kw: Any) -> TraceEvent:
         ev = TraceEvent(seq=len(self.events), ts=time.time(), kind=kind, name=name, **kw)
         self.events.append(ev)

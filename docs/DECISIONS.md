@@ -94,3 +94,52 @@ Perception of a photo (Muse extraction + SAM links) does not depend on inspectio
 each photo once and replay the same observation into every order (`observe_recorded`, trace `source="replay"`).
 Final-assessment differences can then only come from the agent/policy, not from Muse run-to-run variance.
 Guidance planning may still be live (Muse) or deterministic (offline).
+
+## D17 — M1 persistence: SQLite, rebuild the agent per request, snapshot + append-only evidence (2026-11-02)
+No in-memory agent cache: every request rebuilds `InspectionAgent` from SQLite (`AgentState` snapshot + stored
+trace events + stored normalized photos), so "after a restart" is the normal code path. Observations, requests,
+history and trace events are append-only; a step commits in one transaction. Rebuilding by replaying
+`observe_recorded` was rejected: it re-plans and would not reproduce request ids or gap attempts. Restore checks
+budget, call limit, a fresh client (calls counter restored, never added to), trace length and sequence integrity.
+Normalized photos and rendered overlays are stored as SQLite BLOBs (overlays rendered when the photo is processed,
+because SAM masks are not persisted); originals are never stored. `policy_drift()` flags, never replaces, a stored
+verdict that the current policy would not produce. Muse reasoning-effort configuration unchanged (D11).
+
+## D18 — One capture at a time per inspection; synchronous POST /captures (2026-11-02)
+A second capture while one is processing gets HTTP 409 (guidance is sequential). M1 uses a synchronous request;
+the service keeps the step in a task independent of the HTTP connection so a 202 + polling flow can be added
+without changing the engine. The agent itself refuses overlapping steps and snapshots taken mid-step.
+
+## D19 — Idempotency and interrupted submissions (2026-11-02)
+Retrying an `Idempotency-Key` returns the stored response; reusing a key with different image content is rejected.
+An interrupted submission must not double-count model calls nor leave the inspection locked (design for Stage 2:
+the call counter is persisted with each attempt, the lease is cleared and the submission marked interrupted on
+recovery).
+
+## D20 — SQLite schema, migrations and transactions (2026-11-02)
+Stdlib `sqlite3` (no ORM), one connection per `Store` serialized by a lock, WAL, `foreign_keys=ON`,
+`busy_timeout` 5 s. Schema version in `PRAGMA user_version`; each migration runs in one transaction with its
+version bump (DDL is transactional in SQLite), a newer on-disk version is refused. Each fact is stored once:
+inspection control state (gap attempts, exhausted gaps, current assessments, stop reason, budget) in
+`inspections.control_json`; observations, requests, history (+ assessment snapshot per step) and trace in
+append-only tables; normalized photos and overlays as BLOBs, restored with `NormalizedImage.from_stored`. Every
+observation must reference a stored photo (FK), so replay-only agents without photos are not storable by design.
+`commit_step` is one `BEGIN IMMEDIATE` transaction guarded by lease token + expected version; stored rows must be an
+unchanged prefix of the new state (append-only check), so a stale or rewritten state cannot drop or alter evidence.
+Trace/response/failure content carrying `data:image/` or bearer tokens is refused. `engine_version` = package
+version + hash of the verdict/guidance modules, kept per inspection for policy-drift audit.
+
+## D21 — Leases, idempotency and model-call accounting (supersedes the worst-case charge idea) (2026-11-02)
+Lease = conditional `UPDATE ... WHERE lease_token IS NULL` with a random token and a heartbeat; never stolen on
+acquire. `recover_interrupted(stale_before)` clears leases with an older heartbeat, marks their `processing`
+submissions `interrupted` (failure audit kept) and their unsettled calls `outcome_unknown`; idempotent; re-checks
+staleness inside the write transaction. `begin_capture` checks the idempotency key and takes the lease atomically:
+same key + same image → stored response if done, busy if processing, new attempt if failed/interrupted; same key +
+different image → `IdempotencyConflict`. Model calls: `reserve_model_call` (under the lease, before the request is
+sent) increments the authoritative counter and inserts a `reserved` row in one transaction and refuses beyond the
+budget; `settle_model_call` records ok/error without touching the counter; recovery and failure only relabel
+unsettled rows `outcome_unknown` (billing unknown, counted once, never invented as completed). `commit_step` sets the
+counter to max(stored, agent count), never a sum; `load_restore_bundle` gives the restored client the authoritative
+counter. Stage 3 hook required: `MetaClient._reserve_call` must call `Store.reserve_model_call` (abort the call if it
+raises) and the service settles each reservation from the matching `model_call` trace event; without the hook, calls
+of an attempt that never commits are not counted.

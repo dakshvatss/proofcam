@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from pathlib import Path
 
@@ -36,7 +37,10 @@ def agent_with(fm: FakeMeta, **budget) -> InspectionAgent:
 
 
 def observe(agent, name):
-    return asyncio.run(agent.observe(make_image(name, color=(hash(name) % 255, 60, 60))))
+    # Colour derived from a stable digest of the name: distinct names give distinct photos in every run.
+    # (Python's per-process str hash made two names collide ~1 run in 255, turning a photo into a duplicate.)
+    color = tuple(hashlib.sha256(name.encode()).digest()[:3])
+    return asyncio.run(agent.observe(make_image(name, color=color)))
 
 
 def base_fake() -> FakeMeta:

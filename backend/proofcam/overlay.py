@@ -6,6 +6,7 @@ Thin dashed-style outlines                = Muse Spark grounding boxes (model cl
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import numpy as np
@@ -40,6 +41,12 @@ def _dashed_rect(draw: ImageDraw.ImageDraw, box, color, width=2, dash=10):
 
 
 def render_overlay(image: NormalizedImage, rec: ObservationRecord, run: GroundingRun | None, path: Path) -> Path:
+    path.write_bytes(render_overlay_jpeg(image, rec, run))
+    return path
+
+
+def render_overlay_jpeg(image: NormalizedImage, rec: ObservationRecord, run: GroundingRun | None) -> bytes:
+    """Overlay as JPEG bytes (for storage). Needs the photo's GroundingRun to draw SAM masks."""
     base = image.pil().convert("RGBA")
     w, h = base.size
     font = _font(max(12, w // 80))
@@ -73,5 +80,6 @@ def render_overlay(image: NormalizedImage, rec: ObservationRecord, run: Groundin
     legend = "Filled/solid = SAM 3.1 mask+box | dashed = Muse Spark box (claim) | " + image.image_id
     draw.rectangle([0, h - font.size - 8, w, h], fill=(17, 17, 17, 220))
     draw.text((6, h - font.size - 6), legend, fill=(230, 230, 230), font=font)
-    img.convert("RGB").save(path, quality=90)
-    return path
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="JPEG", quality=90)
+    return buf.getvalue()

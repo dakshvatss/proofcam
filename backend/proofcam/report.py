@@ -13,23 +13,44 @@ DISCLAIMER = ("ProofCam verifies visually observable conditions only. It does no
               "hidden connectivity, operational performance, or regulatory compliance.")
 
 
-def write_report(agent: InspectionAgent, run_dir: Path) -> dict:
+def write_report(agent: InspectionAgent, run_dir: Path, stored_overlays: dict[str, bytes] | None = None) -> dict:
+    """Write images, overlays, trace and report files to run_dir.
+
+    stored_overlays (image_id -> JPEG) are overlays rendered when the photo was processed; they are used
+    as-is. A photo whose SAM masks were not restored (agent.masks_unavailable) is never re-rendered, because
+    an overlay without its masks would misrepresent what SAM found.
+    """
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "images").mkdir(exist_ok=True)
     (run_dir / "overlays").mkdir(exist_ok=True)
+    stored_overlays = stored_overlays or {}
     overlays = {}
     for o in agent.observations:
         img = agent.images.get(o.image_id)
         if img is None:  # offline replay without the original photo
             continue
         (run_dir / "images" / f"{o.seq:02d}_{o.image_id}.jpg").write_bytes(img.jpeg_bytes)
-        if o.extraction is not None:
-            p = render_overlay(img, o, agent.grounding_runs.get(o.seq),
-                               run_dir / "overlays" / f"{o.seq:02d}_{o.image_id}.jpg")
-            overlays[o.image_id] = p.relative_to(run_dir).as_posix()
+        if o.extraction is None:
+            continue
+        p = run_dir / "overlays" / f"{o.seq:02d}_{o.image_id}.jpg"
+        if o.image_id in stored_overlays:
+            p.write_bytes(stored_overlays[o.image_id])
+        elif o.seq in agent.masks_unavailable:
+            continue
+        else:
+            render_overlay(img, o, agent.grounding_runs.get(o.seq), p)
+        overlays[o.image_id] = p.relative_to(run_dir).as_posix()
     agent.trace.write_jsonl(run_dir / "trace.jsonl")
-    report = {
-        "inspection_id": run_dir.name,
+    report = build_report(agent, run_dir.name, overlays)
+    (run_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    (run_dir / "report.md").write_text(render_markdown(agent, overlays, report["usage"]), encoding="utf-8")
+    return report
+
+
+def build_report(agent: InspectionAgent, inspection_id: str, overlays: dict[str, str]) -> dict:
+    """Report as a JSON-able dict, with no side effects. overlays: image_id -> overlay reference (path/URL)."""
+    return {
+        "inspection_id": inspection_id,
         "spec": agent.spec.model_dump(),
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "require_grounding": agent.require_grounding,
@@ -46,9 +67,6 @@ def write_report(agent: InspectionAgent, run_dir: Path) -> dict:
         "usage": agent.trace.summary(),
         "disclaimer": DISCLAIMER,
     }
-    (run_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-    (run_dir / "report.md").write_text(render_markdown(agent, overlays, report["usage"]), encoding="utf-8")
-    return report
 
 
 _ICON = {"VERIFIED": "[VERIFIED]", "VIOLATED": "[VIOLATED]", "INSUFFICIENT_EVIDENCE": "[INSUFFICIENT EVIDENCE]"}

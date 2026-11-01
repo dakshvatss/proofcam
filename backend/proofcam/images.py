@@ -35,6 +35,22 @@ class NormalizedImage:
     def pil(self) -> Image.Image:
         return Image.open(io.BytesIO(self.jpeg_bytes)).convert("RGB")
 
+    @classmethod
+    def from_stored(cls, image_id: str, source_name: str, width: int, height: int, jpeg_bytes: bytes,
+                    original_size: tuple[int, int]) -> NormalizedImage:
+        """Rebuild an already-normalized image from persisted bytes WITHOUT re-encoding.
+
+        Re-normalizing would re-encode the JPEG and change image_id, breaking duplicate detection,
+        provenance and overlay alignment. The bytes must still hash to image_id.
+        """
+        if _image_id(jpeg_bytes) != image_id:
+            raise ImageLoadError(f"{source_name}: stored bytes do not match image id {image_id}")
+        return cls(image_id, source_name, width, height, jpeg_bytes, (original_size[0], original_size[1]))
+
+
+def _image_id(jpeg: bytes) -> str:
+    return "img_" + hashlib.sha256(jpeg).hexdigest()[:12]
+
 
 def normalize_image_bytes(data: bytes, source_name: str, max_side: int = 1600) -> NormalizedImage:
     if not data:
@@ -54,7 +70,7 @@ def normalize_image_bytes(data: bytes, source_name: str, max_side: int = 1600) -
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=90)
     jpeg = buf.getvalue()
-    image_id = "img_" + hashlib.sha256(jpeg).hexdigest()[:12]
+    image_id = _image_id(jpeg)
     return NormalizedImage(image_id, source_name, img.width, img.height, jpeg, original_size)
 
 

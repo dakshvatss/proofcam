@@ -15,6 +15,14 @@ class MissingCredentialsError(RuntimeError):
     pass
 
 
+def database_path() -> Path:
+    """SQLite file for inspections: PROOFCAM_DB_PATH (relative paths are relative to the repo root),
+    default var/proofcam.db. Git-ignored; holds private photos."""
+    load_dotenv(REPO_ROOT / ".env")
+    p = Path(os.environ.get("PROOFCAM_DB_PATH", "").strip() or "var/proofcam.db")
+    return p if p.is_absolute() else REPO_ROOT / p
+
+
 @dataclass(frozen=True)
 class Budget:
     """Hard limits on a single inspection. All loops must respect these."""

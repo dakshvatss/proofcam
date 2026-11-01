@@ -18,9 +18,14 @@ Stops when every requirement is VERIFIED/VIOLATED, when no remaining gap can be 
 
 from __future__ import annotations
 
+import copy
+import dataclasses
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict
 
 from .config import Settings
 from .evidence import Gap, NextViewRequest, ObservationRecord, RequirementAssessment
@@ -34,6 +39,34 @@ from .spec import InspectionSpec
 StopReason = Literal["all_requirements_resolved", "no_visually_resolvable_gaps",
                      "observation_budget_exhausted", "model_call_budget_exhausted"]
 _BUDGET_STOPS = ("observation_budget_exhausted", "model_call_budget_exhausted")
+
+
+class AgentState(BaseModel):
+    """Everything needed to resume an inspection between steps, as plain JSON-able data.
+
+    Not included (held elsewhere): the trace events (owned by the client's Trace, persisted separately and
+    checked by count), the normalized photos (persisted as bytes) and SAM masks (only overlays need them;
+    overlays are rendered and stored when each photo is processed).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1] = 1
+    spec: InspectionSpec
+    require_grounding: bool
+    plan_with_muse: bool
+    budget: dict[str, int]
+    observations: list[ObservationRecord]
+    requests: list[NextViewRequest]
+    gap_attempts: dict[str, int]
+    exhausted: dict[str, str]
+    assessments: list[RequirementAssessment]
+    stop_reason: StopReason | None
+    epoch: int
+    history: list[dict[str, Any]]
+    model_calls_started: int
+    model_call_limit: int
+    trace_event_count: int
 
 
 @dataclass
@@ -67,10 +100,93 @@ class InspectionAgent:
         self.stop_reason: StopReason | None = None
         self.epoch = 0
         self.history: list[dict[str, Any]] = []  # one entry per submitted photo or inspection event
+        # Photos whose SAM masks were not restored (see restore()); their overlays must come from storage.
+        self.masks_unavailable: set[int] = set()
+        self._busy = False  # a step is in progress; state is mid-update and must not be read or advanced
 
     @property
     def done(self) -> bool:
         return self.stop_reason is not None
+
+    # ------------------------------------------------------------------ persistence
+
+    def snapshot(self) -> AgentState:
+        """Copy of the resumable state. Only valid between steps (never while observe() is awaiting)."""
+        if self._busy:
+            raise RuntimeError("cannot snapshot while a step is in progress")
+        return AgentState(
+            spec=self.spec, require_grounding=self.require_grounding, plan_with_muse=self.plan_with_muse,
+            budget=dataclasses.asdict(self.budget),
+            observations=[o.model_copy(deep=True) for o in self.observations],
+            requests=[r.model_copy(deep=True) for r in self.requests],
+            gap_attempts=dict(self.gap_attempts), exhausted=dict(self.exhausted),
+            assessments=[a.model_copy(deep=True) for a in self.assessments],
+            stop_reason=self.stop_reason, epoch=self.epoch, history=copy.deepcopy(self.history),
+            model_calls_started=self.client.calls_started, model_call_limit=self.client.call_limit,
+            trace_event_count=len(self.trace.events))
+
+    @classmethod
+    def restore(cls, state: AgentState, client: MetaClient, settings: Settings,
+                images: Iterable[NormalizedImage] = ()) -> InspectionAgent:
+        """Rebuild an agent from a snapshot so the next step behaves as if it had never been interrupted.
+
+        `client` must be fresh (no calls made) and its trace must already hold exactly the persisted events
+        (Trace.from_events); its call counter is set from the snapshot, so calls are neither lost nor counted
+        twice. `images` are the stored normalized photos (NormalizedImage.from_stored); photos may be omitted
+        (as in offline replay), but an image that matches no observation is rejected. No model calls, no
+        policy re-assessment, no trace events.
+        """
+        if dataclasses.asdict(settings.budget) != state.budget:
+            raise ValueError(f"budget differs from the inspection's stored budget {state.budget}")
+        if client.call_limit != state.model_call_limit:
+            raise ValueError(f"client call limit {client.call_limit} != stored {state.model_call_limit}")
+        if client.calls_started != 0:
+            raise ValueError("restore needs a fresh client (it has already started model calls)")
+        if len(client.trace.events) != state.trace_event_count:
+            raise ValueError(f"trace has {len(client.trace.events)} events, snapshot expects "
+                             f"{state.trace_event_count}")
+        seqs = [o.seq for o in state.observations]
+        if seqs != list(range(1, len(seqs) + 1)):
+            raise ValueError(f"observation sequence numbers are not 1..n: {seqs}")
+        if any(o.epoch > state.epoch for o in state.observations):
+            raise ValueError("an observation belongs to a future epoch")
+        req_ids = [r.id for r in state.requests]
+        if len(set(req_ids)) != len(req_ids):
+            raise ValueError(f"duplicate next-view request ids: {req_ids}")
+
+        agent = cls(state.spec, client, settings, require_grounding=state.require_grounding,
+                    plan_with_muse=state.plan_with_muse)
+        agent.observations = [o.model_copy(deep=True) for o in state.observations]
+        agent.requests = [r.model_copy(deep=True) for r in state.requests]
+        agent.gap_attempts = dict(state.gap_attempts)
+        agent.exhausted = dict(state.exhausted)
+        agent.assessments = [a.model_copy(deep=True) for a in state.assessments]
+        agent.stop_reason = state.stop_reason
+        agent.epoch = state.epoch
+        agent.history = copy.deepcopy(state.history)
+        client.calls_started = state.model_calls_started
+        known = {o.image_id for o in agent.observations}
+        for img in images:
+            if img.image_id not in known:
+                raise ValueError(f"image {img.image_id} matches no observation")
+            agent.images[img.image_id] = img
+        agent.masks_unavailable = {o.seq for o in agent.observations if any(g.objects for g in o.sam)}
+        return agent
+
+    def policy_drift(self) -> list[str]:
+        """Requirement ids whose stored assessment differs from a fresh policy run over the same evidence.
+
+        Pure check (no trace events, nothing changed). Non-empty means the policy code changed since the
+        assessment was made; the caller must surface this rather than silently replace a verdict.
+        """
+        obs = self.current_observations
+        fresh = {r.id: assess_requirement(self.spec, r, obs, self.require_grounding)
+                 for r in self.spec.requirements}
+        stored = {a.requirement_id: a for a in self.assessments}
+        if not stored:  # nothing assessed yet (no photo, no event)
+            return []
+        return sorted(rid for rid in fresh.keys() | stored.keys()
+                      if rid not in fresh or rid not in stored or fresh[rid] != stored[rid])
 
     @property
     def current_observations(self) -> list[ObservationRecord]:
@@ -118,6 +234,7 @@ class InspectionAgent:
         Earlier photos stay in the record but stop counting as evidence; gap attempts reset; a stop caused
         by a verdict or by exhausted gaps is reopened. Budget stops are never reopened.
         """
+        self._check_idle()
         if self.stop_reason in _BUDGET_STOPS:
             raise RuntimeError(f"cannot reopen an inspection stopped by {self.stop_reason}")
         self.epoch += 1
@@ -133,6 +250,14 @@ class InspectionAgent:
 
     async def observe(self, image: NormalizedImage) -> StepResult:
         """Live path: perceive the photo with Muse + SAM, then integrate it."""
+        self._check_idle()
+        self._busy = True
+        try:
+            return await self._observe(image)
+        finally:
+            self._busy = False
+
+    async def _observe(self, image: NormalizedImage) -> StepResult:
         if self.done:
             raise RuntimeError(f"inspection already stopped: {self.stop_reason}")
         dup = self._duplicate(image.image_id, image.source_name)
@@ -153,6 +278,15 @@ class InspectionAgent:
         Perception of one photo does not depend on inspection state, so a recorded Muse extraction and its
         SAM links can be replayed in any order. No Muse/SAM perception calls are made.
         """
+        self._check_idle()
+        self._busy = True
+        try:
+            return await self._observe_recorded(recorded, image, run)
+        finally:
+            self._busy = False
+
+    async def _observe_recorded(self, recorded: ObservationRecord, image: NormalizedImage | None,
+                                run: GroundingRun | None) -> StepResult:
         if self.done:
             raise RuntimeError(f"inspection already stopped: {self.stop_reason}")
         dup = self._duplicate(recorded.image_id, recorded.source_name)
@@ -170,6 +304,12 @@ class InspectionAgent:
         return await self._integrate(rec, image, run, notes, False)
 
     # ------------------------------------------------------------------ internals
+
+    def _check_idle(self) -> None:
+        # One step at a time: seq, responding_to and gap attempts are read before awaiting model calls,
+        # so overlapping steps on one agent would corrupt them.
+        if self._busy:
+            raise RuntimeError("another step is in progress for this inspection")
 
     def _duplicate(self, image_id: str, source_name: str) -> StepResult | None:
         prev = next((o for o in self.observations if o.image_id == image_id), None)

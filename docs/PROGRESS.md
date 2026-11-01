@@ -1,5 +1,45 @@
 # Progress log
 
+## 2026-11-02 — Milestone 1, Stage 2: SQLite store (no API calls, no HTTP/service yet, nothing committed)
+
+`backend/proofcam/store.py` (stdlib sqlite3; WAL, foreign keys, `PRAGMA user_version` migrations, explicit
+`BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK`). Tables: `inspections`, `photos` (normalized JPEG + overlay BLOBs),
+`observations`, `next_view_requests`, `steps`, `trace_events`, `submissions`, `model_calls`. AgentState is rebuilt
+from the tables (`load_restore_bundle`), not stored twice. `config.database_path()` (`PROOFCAM_DB_PATH`, default
+`var/proofcam.db`); `.gitignore` now also covers `var/` and `*.db-wal`/`-shm`/`-journal`. See D20–D21.
+
+Tests: `pytest -q` → **177 passed**, 1 live deselected (133 + 44 in `tests/test_store.py`; temp databases, FakeMeta
+only), identical under `PYTHONHASHSEED` random/0/621. Reopening the database between every photo reproduces the
+uninterrupted run (state, trace minus timings, counters, request ids, photos byte-identical, overlays, per-step
+assessments); bounded stop, budget stop and installation-change epochs survive reopening. Mutation check: 13
+store guards (version check, append-only, rollback, idempotency image check, conditional lease, recovery staleness,
+recovery call relabelling, max-not-sum counter, authoritative counter on restore, store budget check, unsafe
+content) each make a test fail.
+
+Not verifiable until Stage 3: the `MetaClient._reserve_call` → `Store.reserve_model_call` hook (exercised here only
+by a test subclass), settlement of call outcomes in the live service, lease heartbeats during long Muse calls, the
+startup recovery call, and HTTP 409 mapping of `InspectionBusy`.
+
+## 2026-11-02 — Milestone 1, Stage 1: resumable agent state (no API calls, nothing committed)
+
+Architecture approved (D17–D19). Stage 1 adds, with no change to `policy.py`/`evidence.py`:
+`AgentState` + `InspectionAgent.snapshot()`/`restore()` (all counters, request ids, gap attempts, exhausted gaps,
+stop reason, epoch, history, model-call counter; checks budget, fresh client, trace length, seq 1..n, image ids);
+`InspectionAgent.policy_drift()` (pure re-assessment check); a one-step-at-a-time guard on `observe`,
+`observe_recorded`, `mark_installation_changed`; `Trace.from_events`; `NormalizedImage.from_stored` (no re-encode,
+bytes must hash to `image_id`); `overlay.render_overlay_jpeg`; `report.build_report` (side-effect free) and
+`write_report(..., stored_overlays=)`, which never redraws a restored photo's overlay without its SAM masks.
+
+Tests: `pytest -q` → **133 passed**, 1 live deselected (98 + 35 in `tests/test_persistence.py`, all mocked/replay).
+Restart between every photo reproduces the uninterrupted run exactly (state, request ids, trace minus timings,
+call counter) in 3 live-path orders, the bounded no-progress loop, the call-budget stop and the m2/m3/m7 replay.
+Mutation check: removing any one restore step (calls counter, gap attempts, exhausted, requests, stop reason,
+epoch, images, fresh-client check, busy flag, trace copy) fails at least one test.
+
+Found and fixed a pre-existing flaky M0 test helper: `test_agent.observe()` coloured images with `hash(name) % 255`
+(per-process randomized), so ~1 run in 255 two names produced identical photos → duplicate → 2 M0 tests failed
+(reproduced with `PYTHONHASHSEED=621`). Now a sha256-derived colour; suite passes under seeds 0/1/621/12345/random.
+
 ## 2026-10-31 — Live multi-photo test with a SYNTHETIC (AI-generated) image: first live VERIFIED
 
 **What this is:** a real Meta API run (trace `source="live"`, 12 calls, all `ok`) in which the third photo was an
