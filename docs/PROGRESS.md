@@ -1,5 +1,32 @@
 # Progress log
 
+## 2026-11-02 — Milestone 1, Stage 4: end-to-end reliability and offline acceptance (no paid calls, not committed)
+
+Added `backend/tests/test_acceptance.py` (29 tests, FakeMeta/MockTransport + temp SQLite only). Fix: corrupt stored
+state on the capture and event paths now returns 500 `storage_corrupt` (was generic `internal_error`); no other code
+change. `pytest -q` → **244 passed**, 1 live deselected, identical under `PYTHONHASHSEED` random/0/621.
+
+Demonstrated over HTTP with a fresh server + reopened SQLite before every photo: VERIFIED, VIOLATED and
+INSUFFICIENT_EVIDENCE (bounded stop) give exactly the direct M0 engine's assessments, history, request ids, gap
+attempts, exhausted gaps, trace (minus timings), images and calls; reports (JSON/MD) and stored photo/overlay bytes
+match. All 6 photo orders of the complementary set verify with identical provenance. VIOLATED stop → 409 on capture
+→ installation change → VERIFIED, earlier photo superseded, identical to M0. Budget never resets across restarts.
+Reliability: reservation written before every HTTP attempt incl. 503 and timeout retries (checked inside the
+transport); Muse 400 / malformed output / SAM 500 never yield a verdict; long call keeps its lease past the staleness
+threshold, other inspections proceed in parallel; server shutdown mid-step → outcome_unknown, retry counted once;
+**real `kill` of a child process mid-call** → lease recovered at next startup, submission interrupted, retry
+completes, call counted once; commit failure rolls back; rogue version bump → 409 conflict, nothing saved; corrupt
+state → 500 storage_corrupt, contained to that inspection; idempotency across restarts and inspections; no
+cross-inspection leakage. Security: no DB/WAL/.env/private images/runs tracked and all git-ignored; the configured
+key is in no tracked file (checked without printing it); hostile filenames reduced to base names; real
+`uvicorn ... --factory --workers 1` started with a dummy key: health/create/get OK, key absent from logs. CLI and API
+produce identical reports and traces for the same photos. Invariants (contiguous reservations = HTTP requests sent,
+no unsettled reservation without a lease, contiguous sequences, image hashes, integrity, no VERIFIED without
+grounded support) checked after every scenario. Mutation check: 4 more guards each fail an acceptance test.
+
+Open (see D24): synchronous capture duration vs proxy timeouts; no API authentication (a public deployment would
+let anyone spend the model budget); no live call through the API yet.
+
 ## 2026-11-02 — Milestone 1, Stage 3: service + FastAPI (mocked only; no paid calls; nothing committed)
 
 New: `proofcam/service.py` (`InspectionService`), `proofcam/api.py` (`create_app(settings, store, transport=None)`,

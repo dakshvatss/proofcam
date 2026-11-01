@@ -362,6 +362,9 @@ class InspectionService:
             if isinstance(e, (VersionConflict, AppendOnlyViolation)):
                 raise ServiceError(409, "conflict", "the inspection changed concurrently; nothing was saved, "
                                                     "retry the capture") from e
+            if isinstance(e, StoreCorruptionError):
+                log.error("corrupt inspection %s: %s", iid, e)
+                raise ServiceError(500, "storage_corrupt", "stored inspection data is unreadable") from e
             raise
         finally:
             await heartbeat.stop()
@@ -400,7 +403,7 @@ class InspectionService:
     async def declare_installation_changed(self, inspection_id: str, reason: str) -> InspectionState:
         token = self._acquire(inspection_id)
         try:
-            bundle = self.store.load_restore_bundle(inspection_id)
+            bundle = self._bundle(inspection_id)
             async with self._read_only_agent(bundle) as agent:
                 try:
                     agent.mark_installation_changed(reason)

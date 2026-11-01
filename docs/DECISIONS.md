@@ -170,3 +170,13 @@ heartbeat task renews the lease every 10 s; leases with a heartbeat older than 6
 lazily when a request finds the inspection busy — an actively renewed lease is never taken. A step that lost its
 lease is never committed (`lease_lost`). Deployment assumption for M1: one uvicorn worker; multi-process
 correctness relies on the store's conditional leases and version checks, not on in-process state.
+
+## D24 — Deployment constraints found in M1.4 (2026-11-02; to resolve before M5)
+Synchronous `POST /captures` duration: observed live 25–48 s per photo (6–29 s with `reasoning_effort=low`); the
+theoretical worst case with current timeouts (Muse 120 s and SAM 90 s, one retry on timeout, extraction + repair +
+planning) is ~19 min. Common proxy defaults (e.g. 60 s) can cut the connection; the step still completes and the
+client recovers by retrying the same Idempotency-Key (stored response) or reading `GET /api/inspections/{id}`.
+Before deployment: raise the proxy timeout (≥ 300 s) and cap per-request model time, or switch to 202 + polling
+(service already runs the step independently of the connection). The API has no authentication: any client that
+reaches it can spend the model budget, so it must not be exposed publicly without an access control in M5. A
+reverse proxy must also enforce the 15 MB body limit (the app rejects larger uploads only after receiving them).
