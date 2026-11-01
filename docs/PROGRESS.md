@@ -1,5 +1,25 @@
 # Progress log
 
+## 2026-11-02 — Milestone 2.1: verdict correctness (offline; no paid calls; not committed)
+
+Fixed the three classes of unsafe verdict confirmed in the M2.0 audit, in `policy.py` only (+ one report note):
+three-way colour comparison (D25), conflicting cable traces as contradictions (D26), ambiguous device identity and
+disclosure of cross-photo recognition (D27). All four M2.0 probes now give INSUFFICIENT_EVIDENCE (dark gray vs black,
+translucent white + blue cable no longer VIOLATED; conflicting trace and duplicate router no longer VERIFIED); the
+legitimate single-photo and complementary-photo VERIFIED cases are unchanged.
+
+Tests: `pytest -q` → **297 passed**, 1 live deselected (244 + 53 in `tests/test_verdict_correctness.py`), identical
+under `PYTHONHASHSEED` random/0/621; no existing test changed expectation. Covered: colour table (22 cases), near
+colours, see-through plugs (grounded vs not, incl. ablation), in-photo plug/cable disagreement, clear mismatches and
+empty ports still VIOLATED, unique-cable rule, conflicting traces in both orders and from either endpoint, five
+non-qualifying traces that must not conflict, similar cables not joined, conflict without a proof reported only,
+superseded epoch, snapshot/restore, duplicate devices (clear/uncertain), ambiguous photo cannot violate, HTTP +
+restart + Markdown report showing the contradiction, and an M1-stored verdict flagged by `policy_drift` /
+`engine_changed` without being rewritten. Mutation check: 8 new guards each fail a test.
+
+Not yet done (M2.2): a contradiction still produces a "close view" request (now also for trace conflicts), although
+no photo can resolve it.
+
 ## 2026-11-02 — First LIVE call through the M1 API (approved smoke test): PASS
 
 `backend/experiments/api_smoke.py` (new): one inspection (`my_setup`), one real photo (`m2_router_rear_close.png`),

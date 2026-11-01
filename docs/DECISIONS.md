@@ -180,3 +180,41 @@ Before deployment: raise the proxy timeout (≥ 300 s) and cap per-request model
 (service already runs the step independently of the connection). The API has no authentication: any client that
 reaches it can spend the model budget, so it must not be exposed publicly without an access control in M5. A
 reverse proxy must also enforce the 15 MB body limit (the app rejects larger uploads only after receiving them).
+
+## D25 — Three-way colour comparison (M2.1, 2026-11-02)
+Defect (M2.0 probe): any single recognised colour word different from the requirement was a violation, so "dark
+gray" for a black cable, "off-white" for beige, and a clear RJ45 plug described as "translucent white" with the
+blue cable visibly attached all produced VIOLATED. Rule now (`policy.compare_color`, `plug_colour_status`): MATCH
+(exactly one recognised base colour equal to the requirement) is the only colour that supports; CLEAR MISMATCH
+(exactly one recognised colour, not a near neighbour, not described as see-through) is the only colour that may
+violate; everything else is UNCERTAIN and does neither (gap INSERTION_UNCLEAR, `colour_ambiguous`). Near pairs are a
+fixed table (white/beige/gray, black/gray, blue/purple, red/pink/orange/brown, orange/yellow, yellow/beige/green,
+pink/purple); unknown words (teal, cyan, charcoal) stay unmapped and therefore uncertain. A colourless or
+see-through plug takes the colour of a cable Muse links to that port only if the port is SAM-grounded, even in the
+no-grounding ablation. A plug colour that clearly differs while a linked cable is (or may be) the required colour is
+an in-photo disagreement: uncertain. The unique-cable wrong-port violation requires the plug's OWN colour. Trade-off:
+a genuinely wrong near-colour cable (gray where black is required) is reported as unclear, not VIOLATED.
+
+## D26 — Conflicting cable traces are contradictions (M2.1, 2026-11-02)
+Defect (M2.0 probe P2): photo A traced the LAN 1 cable to switch port 3, photo B traced the same LAN 1 cable to
+port 4; the result was VERIFIED with no contradiction. Rule now (`identity_evidence` returns conflicting traces): a
+cable meeting every condition of an identity proof (fully traced, MATCH colour, plugs inserted with MATCH colour,
+SAM-grounded) running from a port identified as one spec endpoint to a port on the other spec device whose own label
+is legibly a different port is conflicting evidence (the conflicting side needs a direct label; inference never
+creates negative evidence). Under the static-installation assumption one plug has one cable, so with a proof present
+(or, with `unique_in_installation`, with both endpoints supported) it is a visible contradiction: `contradictions`
+entry "cable identity: ...", CONTRADICTION gap (endpoint_index None), identity not established, no VERIFIED. Without
+an opposing proof it is reported as "conflicting trace (not counted as evidence)"; it does not create a new violation
+rule. Only current-epoch photos count (D15). Cable appearance across photos is still never used to join cables.
+
+## D27 — Ambiguous device identity; cross-photo recognition disclosed (M2.1, 2026-11-02)
+Defect (M2.0 probe P3): two devices in one photo both claimed as `router` still produced VERIFIED. Rule now
+(`ambiguous_device_ids`): if more than one device in a photo (any certainty) claims the same spec id, that photo is
+not used for that spec device at all (no support, no violation, no trace end); other devices in the photo are
+unaffected; the explanation names the unused photos and DEVICE_NOT_SEEN carries `ambiguous_photos`. Recognition of
+a device in different photos by matching the spec description is not independent proof of one physical unit; this
+is stated in every report (`device_identity_note`, Markdown header) rather than solved (it would need unique marks).
+
+Compatibility of D25–D27: no change to evidence/gap models, SQLite schema or API contracts (one additive report key).
+Stored verdicts are never recomputed: inspections recorded by the M1 policy whose verdict the new policy would not
+reproduce show `policy_drift` and `engine_changed`, with the stored verdict unchanged (tested).

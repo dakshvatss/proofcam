@@ -11,6 +11,9 @@ from .overlay import render_overlay
 
 DISCLAIMER = ("ProofCam verifies visually observable conditions only. It does not certify electrical safety, "
               "hidden connectivity, operational performance, or regulatory compliance.")
+DEVICE_IDENTITY_NOTE = ("Devices are recognised in each photo by matching them to the spec description; this is not "
+                        "independent proof that photos of a device show the same physical unit. A photo in which more "
+                        "than one device matches the same spec device is not used for it.")
 
 
 def write_report(agent: InspectionAgent, run_dir: Path, stored_overlays: dict[str, bytes] | None = None) -> dict:
@@ -66,6 +69,7 @@ def build_report(agent: InspectionAgent, inspection_id: str, overlays: dict[str,
         "overlays": overlays,
         "usage": agent.trace.summary(),
         "disclaimer": DISCLAIMER,
+        "device_identity_note": DEVICE_IDENTITY_NOTE,
     }
 
 
@@ -101,7 +105,7 @@ def _contributions(agent: InspectionAgent, seq: int) -> list[str]:
 
 
 def render_markdown(agent: InspectionAgent, overlays: dict, usage: dict) -> str:
-    L = [f"# ProofCam inspection: {agent.spec.title}", "", f"_{DISCLAIMER}_", "",
+    L = [f"# ProofCam inspection: {agent.spec.title}", "", f"_{DISCLAIMER}_", "", f"_{DEVICE_IDENTITY_NOTE}_", "",
          f"Stop reason: `{agent.stop_reason or 'open — no more photos supplied'}` · photos: {len(agent.observations)} · "
          f"model calls: {usage['model_calls']} · est. cost ${usage['estimated_cost_usd']:.4f}", "",
          "Mode: static verification — all photos of one configuration are assumed to show the same unchanged "

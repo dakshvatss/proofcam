@@ -223,18 +223,22 @@ towards VERIFIED.
 
 ### What counts as support for one end of a cable (an "endpoint")
 All of these must hold in a single photo:
-- the device is identified with `clear` certainty;
+- the device is identified with `clear` certainty, and no other device in that photo claims the same spec device
+  (if two do, the photo is not used for that device: which one is meant is ambiguous);
 - the port is **identified**: its own label is `legible` and matches the spec (after normalization, or via
   `label_aliases`) — or, only if the requirement sets `port_identity: "label_or_layout"`, by neighbour-layout
   inference (below);
 - a cable is `cable_inserted` with `clear` visibility;
-- the plug colour matches the required colour (a colourless plug counts if a cable of the right colour visibly
-  belongs to that port in the same photo);
+- the plug colour **matches** the required colour (a colourless or see-through plug counts if a cable of the right
+  colour visibly belongs to that port in the same photo, and the port is SAM-grounded). Colour is compared three
+  ways: *match*, *clear mismatch*, or *uncertain* (near colours such as "dark gray" vs black, unknown words, several
+  colours, "translucent white", or a plug colour that disagrees with its own cable). Uncertain never supports;
 - SAM's mask of the required cable reaches that port (can be switched off with `--no-grounding-requirement`,
   for comparison experiments only).
 
 ### What counts as a violation
-In a clear view of the correctly labelled port: it is **empty**, or it holds a **different-coloured** plug. If the
+In a clear view of the correctly labelled port: it is **empty**, or it holds a plug of a **clearly different**
+colour (an *uncertain* colour is never a violation). If the
 spec declares the cable unique (`cable_identity: "unique_in_installation"`), the required cable sitting in a
 *different* port also counts. Violations don't need SAM, because SAM can't segment something that's absent.
 
@@ -244,6 +248,9 @@ Both ends supported still isn't enough. ProofCam also needs either one photo whe
 spec author's explicit statement that only one such cable exists (reported as an assumption). The trace photo does
 **not** have to be the photo that supports the ends: a wide shot can prove identity while close-ups prove
 insertion. A traced cable whose ports can't be identified in that photo is reported as a "near miss", never as proof.
+If another photo traces the same endpoint's cable (same conditions: fully traced, right colour, grounded) to a
+legibly *different* port, the two traces are a **contradiction**: no VERIFIED. Devices are recognised in each photo
+against the spec description; that is not proof that two photos show the same physical unit (stated in reports).
 
 ### Port identity by neighbouring labels (opt-in)
 A plug often hides its own port label. If the device's spec declares `port_rows` (e.g. `["1","2","3","4","5"]`)
