@@ -16,7 +16,7 @@ import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 from meta_sam_parser import (
@@ -46,6 +46,20 @@ class MetaAPIError(RuntimeError):
 
 class BudgetExhausted(MetaAPIError):
     pass
+
+
+class CallAccounting(Protocol):
+    """Optional per-request accounting (e.g. a persistent budget). Unlike the in-memory call counter, which
+    counts logical calls, this sees EVERY HTTP attempt, retries included.
+
+    before_request runs before an attempt is sent; raising prevents the request (raise BudgetExhausted for a
+    budget refusal so callers treat it like the in-memory budget). after_request records the attempt's known
+    outcome; it is not called if the attempt is interrupted (e.g. cancelled), leaving the outcome unknown.
+    """
+
+    def before_request(self, name: str, attempt: int, image_id: str | None) -> Any: ...
+
+    def after_request(self, ticket: Any, ok: bool, detail: dict[str, Any]) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -96,12 +110,13 @@ def _redact_request(payload: dict[str, Any], image: NormalizedImage | None) -> d
 class MetaClient:
     def __init__(self, settings: Settings, trace: Trace,
                  transport: httpx.AsyncBaseTransport | None = None, source: str = "live",
-                 call_limit: int | None = None) -> None:
+                 call_limit: int | None = None, accounting: CallAccounting | None = None) -> None:
         self.s = settings
         self.call_limit = call_limit if call_limit is not None else settings.budget.max_model_calls
         self.calls_started = 0
         self.trace = trace
         self.source = source
+        self.accounting = accounting
         self._http = httpx.AsyncClient(
             base_url=settings.api_base,
             headers={"Authorization": f"Bearer {settings.api_key}"},
@@ -116,20 +131,28 @@ class MetaClient:
             raise BudgetExhausted(f"model call budget ({self.call_limit}) exhausted before {name}")
         self.calls_started += 1
 
-    async def _with_retries(self, fn, *, name: str):
+    def _settle(self, ticket: Any, ok: bool, detail: dict[str, Any]) -> None:
+        if self.accounting is not None:
+            self.accounting.after_request(ticket, ok, detail)
+
+    async def _with_retries(self, fn, *, name: str, image_id: str | None = None):
         self._reserve_call(name)
         attempt = 0
         while True:
             attempt += 1
+            ticket = (self.accounting.before_request(name, attempt, image_id)
+                      if self.accounting is not None else None)
             try:
-                return await fn(), attempt
+                result = await fn()
             except (httpx.TimeoutException, httpx.TransportError) as e:
+                self._settle(ticket, False, {"attempt": attempt, "error": type(e).__name__})
                 err = MetaAPIError(f"{type(e).__name__}: {e}", retryable=True)
                 # 504 / read timeouts are not worth more than one retry (docs: do not simply retry).
                 if attempt > min(1, self.s.max_retries):
                     raise err from e
                 wait = 1.0
             except MetaAPIError as e:
+                self._settle(ticket, False, {"attempt": attempt, "http_status": e.status, "code": e.code})
                 if not e.retryable or attempt > self.s.max_retries:
                     e.attempts = attempt  # type: ignore[attr-defined]
                     raise
@@ -139,6 +162,12 @@ class MetaClient:
                 except ValueError:
                     wait = 2.0 ** attempt
                 wait = min(wait, self.s.max_retry_wait_s) + random.uniform(0, 0.5)
+            except Exception as e:  # sent, but the reply was unusable (e.g. malformed stream JSON)
+                self._settle(ticket, False, {"attempt": attempt, "error": type(e).__name__})
+                raise
+            else:
+                self._settle(ticket, True, {"attempt": attempt})
+                return result, attempt
             self.trace.add("error", f"{name}.retry", detail={"attempt": attempt, "wait_s": wait})
             await asyncio.sleep(wait)
 
@@ -163,7 +192,8 @@ class MetaClient:
 
         t0 = time.perf_counter()
         try:
-            body, attempts = await self._with_retries(call, name=purpose)
+            body, attempts = await self._with_retries(call, name=purpose,
+                                                      image_id=image.image_id if image else None)
         except MetaAPIError as e:
             if isinstance(e, BudgetExhausted):
                 raise
@@ -225,7 +255,7 @@ class MetaClient:
 
         t0 = time.perf_counter()
         try:
-            events, attempts = await self._with_retries(call, name=f"sam:{concept}")
+            events, attempts = await self._with_retries(call, name=f"sam:{concept}", image_id=image.image_id)
             seg = await _parse_sam_events(events, image, concept)
         except (MetaAPIError, ResponsesStreamError) as e:
             if isinstance(e, BudgetExhausted):

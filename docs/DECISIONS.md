@@ -143,3 +143,30 @@ counter to max(stored, agent count), never a sum; `load_restore_bundle` gives th
 counter. Stage 3 hook required: `MetaClient._reserve_call` must call `Store.reserve_model_call` (abort the call if it
 raises) and the service settles each reservation from the matching `model_call` trace event; without the hook, calls
 of an attempt that never commits are not counted.
+
+## D22 — Service and HTTP API (2026-11-02)
+`InspectionService` rebuilds the agent from SQLite for every operation (no cache); reads use a MetaClient whose
+transport refuses all requests, so reading an inspection can never call a model. Capture order: validate +
+normalize (no lease) → `begin_capture` (idempotency + lease) → load bundle under the lease → stopped / stale-guidance
+checks → restore → `observe` → overlays → response → `commit_step`; any exception → `fail_submission`. The step runs in
+a service-owned task awaited through `asyncio.shield` (client disconnect does not abort a paid step); on shutdown
+in-flight steps are cancelled and record their failure. Routes: `POST /api/inspections` (allow-listed `spec_id` =
+stem of a `data/specs/*.json`, or inline spec), `GET /api/inspections/{id}`, `POST .../captures` (multipart `file`,
+`source_name`, `responding_to`; `Idempotency-Key` header, else a server key), `POST .../events`
+(`installation_changed`), `GET .../report?format=json|md`, `GET .../photos/{image_id}`, `GET .../overlays/{image_id}`,
+`GET /api/health`. Errors are `{"error","message"}`: 404 not_found/spec_not_found/photo_not_found/overlay_not_found;
+409 inspection_busy/inspection_stopped/stale_guidance/idempotency_conflict/cannot_reopen/lease_lost/conflict;
+413 upload_too_large (15 MB); 422 invalid_request/empty_upload/image_not_decodable/image_too_large/
+invalid_idempotency_key/invalid_spec_id; 500 internal_error (no internals) / storage_corrupt. State and report expose
+`policy_drift` and `engine_changed`; stored verdicts are never recomputed in place.
+
+## D23 — Persistent accounting hook, heartbeats, recovery (2026-11-02)
+`MetaClient(accounting=...)` calls `before_request` before EVERY HTTP attempt (so retries are counted separately in
+persistent mode, while the in-memory counter still counts logical calls) and `after_request` with the attempt's
+known outcome; `StoreAccounting` maps these to `reserve_model_call` / `settle_model_call` and turns a store budget
+refusal into `BudgetExhausted` (the request is never sent; the agent handles it like the in-memory budget). Store
+errors such as `LeaseLost` are not `MetaAPIError`s, so they abort the step instead of becoming a fallback plan. A
+heartbeat task renews the lease every 10 s; leases with a heartbeat older than 60 s are recovered at startup and
+lazily when a request finds the inspection busy — an actively renewed lease is never taken. A step that lost its
+lease is never committed (`lease_lost`). Deployment assumption for M1: one uvicorn worker; multi-process
+correctness relies on the store's conditional leases and version checks, not on in-process state.

@@ -1,5 +1,30 @@
 # Progress log
 
+## 2026-11-02 — Milestone 1, Stage 3: service + FastAPI (mocked only; no paid calls; nothing committed)
+
+New: `proofcam/service.py` (`InspectionService`), `proofcam/api.py` (`create_app(settings, store, transport=None)`,
+`app_from_env` uvicorn factory), `proofcam/api_models.py`. Changed: `meta_client.py` (optional `CallAccounting`
+hook called around EVERY HTTP attempt incl. retries; `image_id` passed to `_with_retries`; no hook = M0 behaviour),
+`pyproject.toml` (fastapi, uvicorn, python-multipart). Policy, evidence, prompts, muse, grounding, CLI untouched.
+Routes, accounting, heartbeat and recovery: D22–D23. Local startup: README §7.
+
+Tests: `pytest -q` → **215 passed**, 1 live deselected (177 + 17 `test_service.py` + 21 `test_api.py`), identical
+under `PYTHONHASHSEED` random/0/621. Covered: restart between photos equals an uninterrupted M0 agent (state, trace
+minus timings, photos byte-identical, usage); reserve-before-send checked from inside the transport; retries
+counted per attempt (503 settled `error`); store budget refuses before sending and survives restart; shutdown
+mid-request → `outcome_unknown`, lease released, retry counts once; a frozen process's lease recovered by a second
+process whose late result is refused (`lease_lost`); heartbeat keeps a lease past the staleness threshold and lazy
+recovery does not steal it; caller disconnect does not abort the step; failure mid-commit leaves no partial step;
+idempotent replay/conflict/duplicate; upload validation (empty, non-image, truncated, >15 MB); 409 busy/stopped/
+stale guidance/cannot reopen; report JSON+MD and photo/overlay bytes after restart; policy drift flagged, not
+replaced; generic 500 without internals; no key/Bearer/data URL in any response. Mutation check: 11 Stage 3 guards
+each fail a test. Smoke run of the real `uvicorn proofcam.api:app_from_env` (scratch DB): health, create, get,
+traversal 422 — no captures, so no model calls.
+
+Not yet demonstrated: any live Meta call through the API (needs approval); heartbeat behaviour under a real
+120 s Muse call; behaviour under multiple uvicorn workers (unsupported in M1); real process kill (simulated by a
+frozen heartbeat + second Store on the same file).
+
 ## 2026-11-02 — Milestone 1, Stage 2: SQLite store (no API calls, no HTTP/service yet, nothing committed)
 
 `backend/proofcam/store.py` (stdlib sqlite3; WAL, foreign keys, `PRAGMA user_version` migrations, explicit

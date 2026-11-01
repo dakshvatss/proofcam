@@ -312,6 +312,19 @@ $env:PROOFCAM_LIVE_IMAGES = "a.png;b.png"; .venv\Scripts\python.exe -m pytest -q
 $env:PROOFCAM_MUSE_REASONING_EFFORT = "low"
 ```
 
+**HTTP API (Milestone 1).** Needs `fastapi uvicorn python-multipart` in the venv. One worker only. The key stays
+server-side (`.env`); the database defaults to `var/proofcam.db` (git-ignored; override with `PROOFCAM_DB_PATH`).
+Creating and reading inspections is free; **every photo uploaded to `/captures` makes live, paid Meta API calls.**
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn proofcam.api:app_from_env --factory --workers 1 --port 8000
+# http://localhost:8000/docs lists the routes:
+#   POST /api/inspections {"spec_id":"my_setup"} · GET /api/inspections/{id}
+#   POST /api/inspections/{id}/captures (multipart file, optional responding_to, header Idempotency-Key)
+#   POST /api/inspections/{id}/events {"type":"installation_changed","reason":"..."}
+#   GET  /api/inspections/{id}/report[?format=md] · /photos/{image_id} · /overlays/{image_id} · GET /api/health
+```
+
 ---
 
 ## 8. Where results live and what it costs
