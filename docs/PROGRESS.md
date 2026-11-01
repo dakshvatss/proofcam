@@ -1,5 +1,21 @@
 # Progress log
 
+## 2026-11-02 — First LIVE call through the M1 API (approved smoke test): PASS
+
+`backend/experiments/api_smoke.py` (new): one inspection (`my_setup`), one real photo (`m2_router_rear_close.png`),
+in-process ASGI app with the real network, hard cap 8 calls via the persistent budget, fresh DB in
+`runs/api-smoke-20261102-022148/` (git-ignored), then a restart and full read-back. Trace `source="live"`.
+
+Result: HTTP 200 in 33.9 s; **4 calls** (Muse observe 11.0 s, SAM `blue ethernet cable` 3.5 s, SAM `router` 8.1 s,
+Muse plan 9.5 s), all reserved before sending and settled `ok`, 0 errors/retries; est. **$0.0348**. Verdict
+**INSUFFICIENT_EVIDENCE** (router LAN 1 label hidden by the plug — `label_only` refuses the layout inference;
+switch not seen), consistent with the 2026-10-31 live run of m2. Next view (Muse): get low and to the left of the
+router rear to read the LAN 1 label. All 10 criteria passed: state/report/MD/photo/overlay after restart; idempotent
+replay with no new calls; key absent from DB files and all responses. Overlay checked visually: SAM router mask and
+cable box aligned with the photo; Muse port boxes slightly right-shifted (known M0 finding).
+Observation (not changed): the planner's instruction refers to "the printed 'LAN 1' text beside its boot", a label
+that has never been observed (the spec records it as hidden); guidance wording can presume unobserved facts.
+
 ## 2026-11-02 — Milestone 1, Stage 4: end-to-end reliability and offline acceptance (no paid calls, not committed)
 
 Added `backend/tests/test_acceptance.py` (29 tests, FakeMeta/MockTransport + temp SQLite only). Fix: corrupt stored
