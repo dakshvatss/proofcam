@@ -1,5 +1,38 @@
 # Progress log
 
+## 2026-11-03 — Milestone 2.3: grounding geometry (offline; no paid calls; not committed)
+
+Implemented: device corroboration by IoU **or containment** (D31) in `grounding.py`; report-level only. Port grounding
+rule unchanged after measurement (D32). New: `experiments/grounding_offline.py` (re-decodes SAM output recorded in
+`runs/` with the production parser; writes `runs/grounding-offline-<ts>/measurements.json`; no API calls).
+
+**Offline measurements on previously recorded live output** (2026-10-31 scenarios s01/s02/s04/s05 twice, own photos
+m1-m7, the synthetic-image run; visual ground truth from the recorded overlays):
+- Devices: 17 groundings with SAM objects. IoU rule: 12 corroborated (not each checked by eye), 4 false negatives
+  (visually correct router masks incl. antennas), 1 unjudgeable. Containment rule: the 4 false negatives corroborated,
+  the unjudgeable one not, the 12 unchanged. SAM `network switch`: 0 objects in all 8 switch groundings (as recorded before).
+- New observation: SAM `router` also segmented the NETGEAR switch in m4 and m7 (second object). Muse's switch box
+  matched that object well. Hypothesis only: a different switch concept might work; untested.
+- Ports: 14 occupied ports grounded; in 10 the same mask also passes an empty neighbour's region; in s04 the empty
+  neighbour got more overlap than the occupied port. Port grounding cannot discriminate adjacent ports.
+
+Tests: `pytest -q` → **351 passed**, 1 live deselected (331 + 20 in `tests/test_grounding_geometry.py`), identical under
+`PYTHONHASHSEED` random/0/621; no existing test changed. Mutation check: 5 containment guards each fail a test (one
+initially survived; a test with a higher-IoU displaced decoy was added). Verdicts are provably independent of device
+links (tested); M2.1/M2.2 suites unchanged and passing.
+
+**Proposed paid experiment (NOT run; needs approval):** SAM only, on normalized images already recorded in
+`runs/scenarios-m-20261031-154423` (the real m1-m7, not the synthetic revision now in `data/images/m7`), reusing the
+recorded Muse output (0 Muse calls). Calls: m2 {ethernet port, ethernet plug}; m3, m4, m7 {ethernet port, ethernet
+plug, ethernet switch}; m5 {ethernet port, ethernet plug}; m1 {ethernet plug, ethernet switch} = **15 SAM calls,
+hard cap 16 (retries included), est. $0.04** (SAM $2.50/1000). Measure: port instances vs visible ports per row;
+plug instances and whether each lands in the correct port column (ground truth from the photos: router leftmost port,
+switch port 3; m5 port 4); a snapped Muse port box vs the known plug position; switch-concept IoU/containment vs Muse's
+switch box. Success: port instances match the visible row in >= 3 of 4 positive photos with centres within half a
+pitch; the plug concept finds the blue plug at the correct port in every positive photo. False-positive check: any plug
+instance at a known-empty port (all of m1's switch ports; m5 switch port 3) or a port instance where there is none
+fails the concept. Only a concept meeting all criteria would be proposed, in a later stage, for port-level grounding.
+
 ## 2026-11-02 — Milestone 2.2: next-view guidance and contradiction handling (offline; not committed)
 
 D28 unread-label guard (prompt rule + deterministic check + neutral templates), D29 on-target attempt accounting with

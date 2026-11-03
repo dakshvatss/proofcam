@@ -256,3 +256,30 @@ API (additive): `review_required: list[ReviewItem]` on inspection state and step
 default [] so stored pre-M2.2 responses replay unchanged); report JSON `review_required`; Markdown "Review required"
 section. A photo-budget stop still takes precedence over a review stop on the last allowed photo. Clients that switch
 on `stop_reason` must treat the new value as a stopped inspection.
+
+## D31 — Device corroboration by IoU or containment (M2.3, 2026-11-03; report-level only)
+Problem: SAM segments the whole router (body + antennas) while Muse boxes the body, so box IoU < 0.5 on correct masks.
+Measured offline on recorded live runs (`experiments/grounding_offline.py`: the recorded raw SAM output re-decoded with
+the production parser, no API calls): of 17 device groundings with SAM objects, 12 passed IoU (not each checked by eye;
+the m4/m7 overlays viewed show correct masks); 4 failed IoU although the mask was visually the right device with antennas (m7-synthetic 0.41, s01
+0.32 and 0.32, m4 0.23); 1 (s05 run 2, IoU 0.44) could not be judged (image 282 px wide). Rule now
+(`grounding.device_corroboration`): IoU >= 0.5 as before, OR containment, judged per SAM object: Muse box >= 90%
+inside that object's box, the object's mask covers >= 60% of the Muse box, SAM box area <= 5x the Muse box. On the
+recorded data this turns the 4 confirmed false negatives into corroborations (worst values 0.948 / 0.746 / 4.02),
+leaves the unjudgeable case uncorroborated (containment 0.828) and changes none of the 12 IoU passes. The thresholds
+were set AFTER seeing these 17 cases (no held-out set exists), with margin to the worst value, plus guards tested on
+synthetic negatives: scene-sized, displaced, outline-only and partially contained masks, and a different object of the
+same concept (SAM 'router' also returned the NETGEAR switch in m4 and m7; per-object judging never lets it vouch for
+the router). The link note now records IoU, containment, coverage, mask-inside share and area ratio. GroundingLink's
+fields are unchanged (stored records are compared byte-for-byte). No verdict, gap or guidance uses device links.
+
+## D32 — Port grounding unchanged; it is presence near a port, not port identity (M2.3, 2026-11-03)
+Measured on the same recorded runs: of 14 occupied ports whose cable grounding passed, 10 had at least one EMPTY
+neighbouring port whose expanded region the same mask also passes; in s04 the empty neighbour received more overlap
+(1140 px) than the occupied port (970 px), and the switch port 3 support of the only live VERIFIED run had a neighbour
+at 60% of its overlap. Because Muse port boxes are displaced (~half to one port), a stricter own-vs-neighbour rule
+would drop correct support, so the rule (50% expansion, >= 30 px and >= 5%) stays. SAM port grounding therefore only
+corroborates "a cable of this colour reaches near this port"; port identity and insertion rest on Muse's per-port
+label/occupancy claims and the M2.1 rules (a legibly empty port stays a violation whatever SAM shows). Residual risk:
+two same-colour cables in adjacent ports cannot be told apart by SAM. A SAM port/plug concept might localise ports;
+untested — proposed as a capped paid experiment (PROGRESS 2026-11-03), not assumed.

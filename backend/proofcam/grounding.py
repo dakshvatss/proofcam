@@ -8,17 +8,25 @@ a real segmented region on the same image.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from .evidence import GroundingLink, SamGrounding, SamObjectSummary
-from .geometry import box_iou, expand_box, mask_pixels_in_box, mask_to_image
+from .geometry import box_area, box_iou, expand_box, mask_pixels_in_box, mask_to_image
 from .images import NormalizedImage
 from .meta_client import MetaAPIError, MetaClient, SamSegmentation
 from .observation import ObservationExtraction
 
 DEVICE_IOU_MIN = 0.5
+# Device corroboration by containment (report-level only; no verdict uses device links). SAM segments whole objects
+# (a router with its antennas) while Muse boxes the body, so box IoU fails on correct masks. Alternative route: the
+# Muse body box lies almost entirely inside ONE SAM object's box, that object's mask actually covers most of the
+# Muse box, and the object is not scene-sized. Set on 2026-11-03 after measuring recorded live runs (see D31).
+DEVICE_CONTAIN_MIN = 0.9   # share of the Muse box area inside the SAM object's box
+DEVICE_COVER_MIN = 0.6     # share of the Muse box area covered by that object's mask pixels
+DEVICE_MAX_AREA_RATIO = 5.0  # SAM box area at most 5x the Muse box area (antennas, stands), never a whole desk
 PORT_EXPAND = 0.5          # grow the Muse port box by 50% each side before testing overlap
 PORT_MIN_PX = 30
 PORT_MIN_FRAC = 0.05
@@ -54,6 +62,58 @@ async def run_sam(client: MetaClient, image: NormalizedImage, concepts: list[str
     return run
 
 
+@dataclass(frozen=True)
+class DeviceDecision:
+    corroborated: bool
+    basis: str                 # "iou" | "containment" | "none"
+    object_id: str | None
+    iou: float                 # box IoU of the chosen SAM object with the Muse box
+    containment: float         # share of the Muse box inside the chosen SAM object's box
+    coverage: float            # share of the Muse box covered by the chosen SAM mask
+    mask_inside: float         # share of the chosen SAM mask lying inside the Muse box (diagnostic)
+    area_ratio: float          # SAM box area / Muse box area
+
+    def note(self, concept: str) -> str:
+        if self.object_id is None:
+            return f"SAM found no '{concept}'"
+        verdict = {"iou": "corroborated by box IoU", "containment": "corroborated by containment",
+                   "none": "not corroborated"}[self.basis]
+        return (f"best SAM '{concept}' object {self.object_id}: box IoU {self.iou:.2f}, Muse box {self.containment:.0%} "
+                f"inside its box, mask covers {self.coverage:.0%} of the Muse box, {self.mask_inside:.0%} of the mask "
+                f"inside it, area ratio {self.area_ratio:.2f} -> {verdict}")
+
+
+def _box_inside(inner, outer) -> float:
+    ix = max(0.0, min(inner[2], outer[2]) - max(inner[0], outer[0]))
+    iy = max(0.0, min(inner[3], outer[3]) - max(inner[1], outer[1]))
+    return ix * iy / max(1.0, box_area(inner))
+
+
+def device_corroboration(muse_box, objects) -> DeviceDecision:
+    """Does one SAM object coincide with the device Muse boxed? objects: [(object_id, sam_box_px, full-image mask)].
+
+    Route 1 (unchanged): box IoU >= DEVICE_IOU_MIN. Route 2: containment (see the constants). Each object is judged
+    on its own, so a different object of the same concept (SAM 'router' also returns the switch) never counts for
+    this device. Report-level only: device corroboration is not evidence of any connection and no verdict uses it.
+    """
+    scored = []
+    for oid, sb, m in objects:
+        inside = mask_pixels_in_box(m, muse_box)
+        mb_area = max(1.0, box_area(muse_box))
+        scored.append(DeviceDecision(False, "none", oid, box_iou(muse_box, sb), _box_inside(muse_box, sb),
+                                     inside / mb_area, inside / max(1, int(m.sum())), box_area(sb) / mb_area))
+    if not scored:
+        return DeviceDecision(False, "none", None, 0.0, 0.0, 0.0, 0.0, 0.0)
+    best_iou = max(scored, key=lambda d: d.iou)
+    if best_iou.iou >= DEVICE_IOU_MIN:
+        return dataclasses.replace(best_iou, corroborated=True, basis="iou")
+    contained = [d for d in scored if d.containment >= DEVICE_CONTAIN_MIN and d.coverage >= DEVICE_COVER_MIN
+                 and d.area_ratio <= DEVICE_MAX_AREA_RATIO]
+    if contained:
+        return dataclasses.replace(max(contained, key=lambda d: d.coverage), corroborated=True, basis="containment")
+    return best_iou
+
+
 def link_devices(ext: ObservationExtraction, run: GroundingRun, device_concepts: dict[str, str],
                  width: int, height: int) -> dict[str, GroundingLink]:
     links: dict[str, GroundingLink] = {}
@@ -71,12 +131,12 @@ def link_devices(ext: ObservationExtraction, run: GroundingRun, device_concepts:
                                          note="Muse gave no box for this device")
             continue
         mb = d.box.to_pixels(width, height)
-        best = max(g.objects, key=lambda o: box_iou(mb, o.box_px), default=None)
-        iou = box_iou(mb, best.box_px) if best else 0.0
+        objs = [(o.object_id, o.box_px, run.masks[(concept, o.object_id)]) for o in g.objects
+                if (concept, o.object_id) in run.masks]
+        dec = device_corroboration(mb, objs)
         links[d.ref] = GroundingLink(
-            concept=concept, sam_object_id=best.object_id if best else None, iou=round(iou, 3),
-            corroborated=iou >= DEVICE_IOU_MIN,
-            note=f"best SAM '{concept}' box IoU {iou:.2f}" if best else f"SAM found no '{concept}'")
+            concept=concept, sam_object_id=dec.object_id, iou=round(dec.iou, 3),
+            corroborated=dec.corroborated, note=dec.note(concept))
     return links
 
 
