@@ -139,7 +139,9 @@ def test_undeclared_configuration_mix_is_a_contradiction_not_a_verification():
     assert a.status == "INSUFFICIENT_EVIDENCE" and a.endpoints[1].state == "contradicted"
     g = a.endpoints[1].gap
     assert g.code == "CONTRADICTION" and "declared" in g.missing_fact
-    assert ag.requests[-1].gap_code == "CONTRADICTION"  # contradictions are requested first
+    # M2.2: a contradiction is never answered with a camera request; it stops for installation review.
+    assert all(r.gap_code != "CONTRADICTION" for r in ag.requests)
+    assert ag.stop_reason == "contradiction_requires_review"
 
 
 def test_declared_installation_change_supersedes_old_photos():

@@ -354,9 +354,12 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
     claimed_support = support + weak
     if claimed_support and conflicts:
         return result("contradicted", gap("CONTRADICTION",
-                                          f"Observations of {target} conflict; a clear, close view is needed. "
-                                          "If the equipment was physically changed between photos, the change "
-                                          "must be declared so earlier photos stop counting.",
+                                          f"Observations of {target} conflict ({_photos(claimed_support)} vs "
+                                          f"{_photos(conflicts)}). Further photos of an unchanged installation "
+                                          "cannot remove this conflict, because every photo keeps counting; the "
+                                          "installation needs review. If the equipment was physically changed "
+                                          "between photos, the change must be declared so earlier photos stop "
+                                          "counting.",
                                           images=sorted({x.image_id for x in claimed_support + conflicts})),
                       support=claimed_support, conflicts=conflicts)
     if support:

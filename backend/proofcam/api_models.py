@@ -53,6 +53,17 @@ class Usage(_Wire):
     cost_basis: str = "list prices applied to committed trace events; excludes calls with unknown outcome"
 
 
+class ReviewItem(_Wire):
+    """A requirement blocked by contradictory evidence. No photo of the unchanged installation can remove it: the
+    installation needs review, and a physical change must be declared via POST .../events installation_changed."""
+
+    requirement_id: str
+    photos: list[int]
+    contradictions: list[str]
+    action: Literal["review_installation"]
+    message: str
+
+
 class PhotoInfo(_Wire):
     seq: int
     image_id: str
@@ -85,6 +96,7 @@ class InspectionState(_Wire):
     photos: list[PhotoInfo]
     assessments: list[RequirementAssessment]
     next_view: NextViewRequest | None
+    review_required: list[ReviewItem] = Field(default_factory=list)
     exhausted_gaps: dict[str, str]
     history: list[dict[str, Any]]
     usage: Usage
@@ -101,6 +113,7 @@ class StepResponse(_Wire):
     stop_reason: str | None
     assessments: list[RequirementAssessment]
     next_view: NextViewRequest | None
+    review_required: list[ReviewItem] = Field(default_factory=list)
     version: int
     usage: Usage
     replayed: bool = Field(False, description="True when this is the stored response of an earlier request with "

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from pydantic import ValidationError
 
@@ -73,16 +74,19 @@ async def extract_observations(client: MetaClient, spec: InspectionSpec,
 
 
 _FALLBACK: dict[str, tuple[CameraAction, str]] = {
-    "CONTRADICTION": ("move_closer", "Move close to {target} and hold steady so the port, its label and any plug "
-                                     "in it are sharp and unobstructed."),
+    # Not used as camera guidance by the agent (a contradiction needs installation review, not another photo).
+    "CONTRADICTION": ("hold_steady_refocus", "Check {target} in person: the photos disagree about it. If the "
+                                             "installation was changed, declare the change before photographing."),
     "DEVICE_NOT_SEEN": ("step_back_wide_view", "Step back and frame the whole {device} ({device_description}) "
                                                "so it is clearly identifiable."),
     "PORTS_NOT_VISIBLE": ("move_to_rear", "Move around to the side of the {device} where its connection ports "
                                           "are, and frame the port row including the printed labels."),
-    "LABEL_ILLEGIBLE": ("move_closer", "Move closer to the {device}'s port row so the printed label for "
-                                       "{port_label} is readable."),
-    "PORT_NOT_FOUND": ("move_closer", "Show the full port row of the {device}, including the port labelled "
-                                      "{port_label} and its printed label."),
+    # Neutral about label text: the spec's expected label is a requirement, not something seen in a photo.
+    "LABEL_ILLEGIBLE": ("move_closer", "Move closer to the {device}'s port row and photograph it straight on, so "
+                                       "that any printed label beside each port can be read and the port expected "
+                                       "to be {port_label} can be identified."),
+    "PORT_NOT_FOUND": ("move_closer", "Show the {device}'s full port row with every printed label readable, so the "
+                                      "port expected to be {port_label} can be identified."),
     "INSERTION_UNCLEAR": ("move_closer", "Move closer to {target} so it is clear whether a plug is fully inserted "
                                          "and what colour it is."),
     "GROUNDING_MISSING": ("move_closer", "Move closer to {target} so the plug and the cable leaving it are both "
@@ -92,10 +96,68 @@ _FALLBACK: dict[str, tuple[CameraAction, str]] = {
 }
 
 
-_HIDDEN_LABEL = ("move_closer", "The printed label for {port_label} on the {device} appears to be hidden by the "
-                                 "inserted plug. Move close and photograph that port row from a low, angled position "
-                                 "so the label next to the plug is readable, keeping the neighbouring port labels "
-                                 "in the same frame.")
+_HIDDEN_LABEL = ("move_closer", "A plug is in a {device} port whose printed label could not be read, so it is "
+                                 "not yet known whether this is {port_label}. Photograph that port row closely from a "
+                                 "low, angled position so that any label beside or under the plug can be read, and "
+                                 "keep the neighbouring ports' labels in the same frame.")
+
+# --------------------------------------------------------------------------- unread-label presumption guard
+# The planner sees the spec's expected label (e.g. 'LAN 1'). Unless that text was actually read in a photo, guidance
+# must not present it as visible printed text ("the printed 'LAN 1' text beside its boot"). Naming the target as a
+# requirement ("the port labelled LAN 1", "the port expected to be LAN 1") stays allowed.
+_PRESUMING_AFTER = re.compile(r"""^\W{0,3}\s*(?:text|label|lettering|marking|markings|print|printing|sticker)\b""",
+                              re.IGNORECASE)
+_PRESUMING_BEFORE = re.compile(
+    r"""\b(?:printed|reads|reading|says|saying|showing|shows|written|engraved|embossed|stamped)\s*['"‘’“”]?\s*$""",
+    re.IGNORECASE)
+
+
+def _label_pattern(label: str) -> re.Pattern[str] | None:
+    """Regex for a spec label as text ('LAN 1' ~ 'LAN1' ~ 'lan-1'); bare numbers only when quoted."""
+    parts = re.findall(r"[A-Za-z]+|\d+", label)
+    if not parts:
+        return None
+    body = r"[\s\-_]*".join(re.escape(p) for p in parts)
+    if all(p.isdigit() for p in parts):
+        return re.compile(r"""['"‘’“”]\s*""" + body + r"""\s*['"‘’“”]""")
+    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+def presumes_unread_label(text: str | None, labels: list[str]) -> bool:
+    """True if `text` presents one of `labels` (never read in any photo) as visible printed text."""
+    if not text:
+        return False
+    for label in labels:
+        pat = _label_pattern(label)
+        if pat is None:
+            continue
+        for m in pat.finditer(text):
+            if _PRESUMING_AFTER.match(text[m.end():m.end() + 24]) or _PRESUMING_BEFORE.search(text[:m.start()]):
+                return True
+    return False
+
+
+def _guard_unread_labels(plan: NextViewPlan, gap: Gap, unread_labels: list[str],
+                         previous_requests: list[str] | None = None) -> tuple[NextViewPlan, str | None]:
+    """Instruction presuming unread label text -> deterministic neutral plan. Other fields -> neutral rewrite.
+    A plan judged not visually resolvable is left alone (its instruction is never shown)."""
+    if not unread_labels or not plan.visually_resolvable:
+        return plan, None
+    if presumes_unread_label(plan.instruction, unread_labels):
+        return fallback_plan(gap, previous_requests), ("planner instruction presented the expected label as visible text, which no "
+                                    "photo has shown; replaced by neutral guidance")
+    fixes: dict[str, str] = {}
+    if presumes_unread_label(plan.success_criteria, unread_labels):
+        fixes["success_criteria"] = (f"The printed label (if any) of the port expected to be "
+                                     f"{gap.context.get('port_label', 'the target')} is readable, with the plug in it.")
+    if presumes_unread_label(plan.target_region, unread_labels):
+        fixes["target_region"] = gap.target
+    if presumes_unread_label(plan.rationale, unread_labels):
+        fixes["rationale"] = gap.missing_fact
+    if not fixes:
+        return plan, None
+    return plan.model_copy(update=fixes), ("rewrote " + ", ".join(sorted(fixes)) + " that presented the expected "
+                                           "label as visible text")
 
 
 def fallback_plan(gap: Gap, previous_requests: list[str] | None = None) -> NextViewPlan:
@@ -109,23 +171,36 @@ def fallback_plan(gap: Gap, previous_requests: list[str] | None = None) -> NextV
         instruction += " The previous view did not resolve this; use a different angle or distance than before."
     return NextViewPlan(instruction=instruction, camera_action=action, target_region=gap.target,
                         rationale=gap.missing_fact,
-                        success_criteria=f"{gap.target} clearly visible and readable in the next photo.",
+                        success_criteria=f"{gap.target} can be identified in the next photo: any printed label "
+                                         "beside it readable and any plug in it clearly visible.",
                         visually_resolvable=True, unresolvable_reason=None)
 
 
 async def plan_next_view(client: MetaClient, spec: InspectionSpec, gap: Gap, image: NormalizedImage | None,
                          recent_notes: list[str], request_id: str, *, evidence_state: list[str] | None = None,
                          previous_requests: list[str] | None = None, latest_image_id: str | None = None,
+                         unread_labels: list[str] | None = None,
                          ) -> tuple[NextViewRequest, NextViewPlan]:
+    """`unread_labels`: spec labels relevant to this gap that no photo of the current configuration has legibly
+    shown. The planner is told so, and its output is checked so it never presents them as visible text."""
     plan, planner, err = None, "muse", None
+    unread = list(unread_labels or [])
     if image is not None:
         try:
-            text = plan_user_text(spec, gap, recent_notes, evidence_state or [], previous_requests or [])
+            text = plan_user_text(spec, gap, recent_notes, evidence_state or [], previous_requests or [],
+                                  unread_labels=unread)
             plan = await _structured(client, NextViewPlan, system=PLAN_SYSTEM,
                                      user=_image_message(text, image),
                                      image=image, purpose="muse_plan")
         except (MetaAPIError, ModelOutputError) as e:
             err = str(e)
+    if plan is not None:
+        plan, guard_note = _guard_unread_labels(plan, gap, unread, previous_requests)
+        if guard_note:
+            client.trace.add("plan", "unread_label_guard", detail={"gap": gap.key, "action": guard_note})
+            err = guard_note
+            if guard_note.startswith("planner instruction"):
+                planner = "deterministic_fallback"
     if plan is None:
         plan, planner = fallback_plan(gap, previous_requests), "deterministic_fallback"
     req = NextViewRequest(id=request_id, requirement_id=gap.requirement_id, gap_code=gap.code,

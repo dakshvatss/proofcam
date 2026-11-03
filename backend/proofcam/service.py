@@ -276,7 +276,7 @@ class InspectionService:
             engine_changed=rec.engine_version != engine_version(), policy_drift=agent.policy_drift(),
             busy=rec.lease_token is not None, spec=agent.spec, photos=photos, assessments=agent.assessments,
             next_view=agent.requests[-1] if agent.requests and not agent.done else None,
-            exhausted_gaps=dict(agent.exhausted), history=agent.history,
+            review_required=agent.review_items(), exhausted_gaps=dict(agent.exhausted), history=agent.history,
             usage=self._usage(iid, rec.model_calls_reserved, rec.model_call_limit, agent.trace),
             disclaimer=DISCLAIMER)
 
@@ -395,7 +395,8 @@ class InspectionService:
         return StepResponse(
             inspection_id=iid, seq=step.seq, image_id=step.image_id, duplicate_of=last.get("duplicate_of"),
             notes=step.notes, status="stopped" if agent.done else "open", stop_reason=agent.stop_reason,
-            assessments=step.assessments, next_view=step.next_view, version=version,
+            assessments=step.assessments, next_view=step.next_view, review_required=agent.review_items(),
+            version=version,
             usage=self._usage(iid, counter, limit, agent.trace))
 
     # ------------------------------------------------------------------ events

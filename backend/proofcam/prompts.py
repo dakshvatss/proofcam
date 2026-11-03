@@ -52,20 +52,26 @@ Rules:
   target only the gap given.
 - "previous_requests_for_this_gap" were already tried and did NOT close the gap. Do not repeat them; choose a
   clearly different position, angle or distance.
-- If a port's label is hidden by an inserted plug, ask for an angle that shows the label beside the plug, and
-  keep the neighbouring port labels in frame.
+- The gap's port_label is what the specification EXPECTS, not text seen in a photo. Labels listed in
+  "labels_never_read_in_any_photo" have never been read: never say or imply that such text is printed, visible,
+  or located anywhere (not "the printed 'LAN 1' text", not "the LAN 1 label beside the plug"). Refer to the
+  target as "the port expected to be <label>" and ask for a view in which any printed label can be read.
+- If a port's label may be hidden by an inserted plug, ask for an angle that would show any label beside or under
+  the plug, and keep the neighbouring port labels in frame.
 - If the gap cannot be closed by any photo (e.g. the cable runs inside a wall), set visually_resolvable
   to false and explain why.
 - Do not claim anything is verified. You only plan the next view."""
 
 
 def plan_user_text(spec: InspectionSpec, gap: Gap, recent_notes: list[str],
-                   evidence_state: list[str] | None = None, previous_requests: list[str] | None = None) -> str:
+                   evidence_state: list[str] | None = None, previous_requests: list[str] | None = None,
+                   unread_labels: list[str] | None = None) -> str:
     req = spec.requirement(gap.requirement_id)
     return json.dumps({
         "requirement": req.text,
         "gap": {"code": gap.code, "target": gap.target, "missing_fact": gap.missing_fact,
                 "context": gap.context},
+        "labels_never_read_in_any_photo": unread_labels or [],
         "evidence_already_established": evidence_state or [],
         "previous_requests_for_this_gap": previous_requests or [],
         "what_recent_photos_showed": recent_notes,

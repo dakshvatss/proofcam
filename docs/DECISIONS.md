@@ -218,3 +218,41 @@ is stated in every report (`device_identity_note`, Markdown header) rather than 
 Compatibility of D25–D27: no change to evidence/gap models, SQLite schema or API contracts (one additive report key).
 Stored verdicts are never recomputed: inspections recorded by the M1 policy whose verdict the new policy would not
 reproduce show `policy_drift` and `engine_changed`, with the stored verdict unchanged (tested).
+
+## D28 — Expected labels are not observed text; guidance guard (M2.2, 2026-11-02)
+Defect (live M1 smoke test): Muse's guidance said "the printed 'LAN 1' text beside its boot", text no photo had
+shown (the plug hides it on the user's setup). Now: the agent computes the gap's spec labels never legibly read on an
+unambiguously identified device in the current configuration and passes them to the planner as
+`labels_never_read_in_any_photo`; the planner prompt says the gap's port_label is expected, not seen, and the
+hidden-label rule no longer presumes a label exists (prompt change; live validation pending, M2.4). A deterministic
+guard (`muse.presumes_unread_label`) flags such a label presented as visible text (followed by text/label/marking/
+sticker, or preceded by printed/reads/says/showing...; bare-number labels only when quoted); naming the target
+("the port labelled LAN 1", "the port expected to be LAN 1") is allowed. A flagged instruction is replaced by the
+neutral deterministic plan (planner `deterministic_fallback`, `planner_error` says why, trace `unread_label_guard`);
+flagged success_criteria/target_region/rationale are rewritten neutrally; plans judged not visually resolvable are
+left alone. All fallback templates were reworded to be neutral (tested against the guard). No extra model call.
+
+## D29 — Attempts count only on-target photos (M2.2, 2026-11-02)
+Defect (M2.0 probe P4): two unrelated photos exhausted the router's gap. An attempt is still counted when a request is
+issued (unchanged stored semantics); if the photo answering it does not address it (unusable or no subject; the
+target device not identified clearly and unambiguously, any certainty for DEVICE_NOT_SEEN; for port-level gaps the
+device without any reported port; CABLE_CONTINUITY needs both devices) the attempt is refunded. If the same gap is
+selected again, the same request (same id) is re-issued with no planner call. Guidance context ("device in latest
+view") now skips photos that identify no spec device, so an irrelevant photo does not redirect guidance. Bounded by
+the photo and model-call budgets (an off-target photo still costs its own observe call). Deterministic; no new stored
+state. "Addresses" uses Muse's validated per-photo claims, not SAM device masks (the switch concept found 0 objects).
+
+## D30 — Contradictions call for installation review, not photos; stop `contradiction_requires_review` (M2.2)
+Defect (M2.0 probe P5): a contradiction was answered with "close view" requests although, with append-only evidence,
+no further photo of the unchanged installation can remove it. Now an INSUFFICIENT requirement with a CONTRADICTION
+gap is blocked: it gets no camera request; `agent.review_items()` describes it (conflicting photos, contradiction
+text, action `review_installation`, message pointing to `installation_changed`); other requirements continue. When
+nothing else can be pursued the agent stops with the new reason `contradiction_requires_review` (additive Literal
+value; stored states, AgentState JSON and the store accept it). Like other non-budget stops it is reopened by a
+declared installation change, which supersedes (never deletes) earlier photos; epochs are never reset
+automatically. The endpoint-contradiction gap text no longer promises that "a clear, close view is needed" (text
+only; stored assessments of contradicted inspections will show `policy_drift`, verdict unchanged).
+API (additive): `review_required: list[ReviewItem]` on inspection state and step responses (derived at read time;
+default [] so stored pre-M2.2 responses replay unchanged); report JSON `review_required`; Markdown "Review required"
+section. A photo-budget stop still takes precedence over a review stop on the last allowed photo. Clients that switch
+on `stop_reason` must treat the new value as a stopped inspection.

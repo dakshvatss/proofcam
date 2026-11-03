@@ -33,11 +33,16 @@ from .grounding import GroundingRun, link_devices, link_ports, run_sam
 from .images import NormalizedImage
 from .meta_client import BudgetExhausted, MetaAPIError, MetaClient
 from .muse import ModelOutputError, extract_observations, plan_next_view, summarize_extraction
-from .policy import assess_requirement, select_gap
+from .policy import ambiguous_device_ids, assess_requirement, label_matches, select_gap
 from .spec import InspectionSpec
 
+# contradiction_requires_review: every remaining open requirement is blocked by a contradiction, which no further
+# photo of the unchanged installation can remove (all photos keep counting). Reopened by an installation change.
 StopReason = Literal["all_requirements_resolved", "no_visually_resolvable_gaps",
-                     "observation_budget_exhausted", "model_call_budget_exhausted"]
+                     "observation_budget_exhausted", "model_call_budget_exhausted",
+                     "contradiction_requires_review"]
+# Gaps whose target is a specific device's port row (the photo must show that device's ports to address them).
+_PORT_GAPS = ("LABEL_ILLEGIBLE", "PORT_NOT_FOUND", "INSERTION_UNCLEAR", "GROUNDING_MISSING")
 _BUDGET_STOPS = ("observation_budget_exhausted", "model_call_budget_exhausted")
 
 
@@ -381,8 +386,21 @@ class InspectionAgent:
         if budget_hit:
             return self._stop("model_call_budget_exhausted", seq, image_id, name, notes)
 
-        # Attempt accounting: a gap targeted by an earlier request that is still open has used an attempt.
+        # Attempt accounting. An attempt is counted when a request is issued; if the photo answering it did not
+        # show what the request targeted (unusable, wrong device, or the device without its ports), that attempt is
+        # refunded and the same request is re-issued below without a new planner call. The photo budget and the
+        # model-call budget still bound everything; an off-target photo never earns more than its own analysis.
         open_keys = {g.key for a in self.assessments for g in a.gaps}
+        pending = self.requests[-1] if self.requests and rec.responding_to == self.requests[-1].id else None
+        reissue: NextViewRequest | None = None
+        if (pending is not None and pending.gap_key in open_keys and pending.gap_key not in self.exhausted
+                and self.gap_attempts.get(pending.gap_key, 0) > 0 and not self._addresses(rec, pending)):
+            self.gap_attempts[pending.gap_key] -= 1
+            reissue = pending
+            notes.append(f"Photo {seq} did not show what request {pending.id} asked for ({pending.target_region}); "
+                         "no attempt was counted and that guidance still applies.")
+            self.trace.add("agent_step", "off_target_photo", image_id=image_id,
+                           detail={"request": pending.id, "gap": pending.gap_key})
         for k, n in self.gap_attempts.items():
             if k in open_keys and n >= self.budget.max_attempts_per_gap and k not in self.exhausted:
                 self.exhausted[k] = f"still unresolved after {n} targeted views"
@@ -391,11 +409,23 @@ class InspectionAgent:
         if seq >= self.budget.max_observations:
             return self._stop("observation_budget_exhausted", seq, image_id, name, notes)
 
+        # CONTRADICTIONS: never answered with a camera request. A requirement blocked by one needs installation
+        # review; the others keep being pursued.
+        review = self.review_items()
+        blocked = {r["requirement_id"] for r in review}
+        notes.extend(r["message"] for r in review)
+
         # SELECT NEXT VIEW
         while True:
-            gap = select_gap(self.assessments, set(self.exhausted), self._devices_in_latest_view())
+            gap = select_gap([a for a in self.assessments if a.requirement_id not in blocked],
+                             set(self.exhausted), self._devices_in_latest_view())
             if gap is None:
-                return self._stop("no_visually_resolvable_gaps", seq, image_id, name, notes)
+                return self._stop("contradiction_requires_review" if blocked else "no_visually_resolvable_gaps",
+                                  seq, image_id, name, notes)
+            if reissue is not None and gap.key == reissue.gap_key:
+                self.gap_attempts[gap.key] = self.gap_attempts.get(gap.key, 0) + 1
+                self.trace.add("plan", "next_view_reissued", image_id=image_id, detail={"request": reissue.id})
+                return self._step(seq, image_id, name, reissue, notes)
             # plan_next_view falls back to a deterministic plan on any API failure, incl. budget.
             plan_img = image if (rec.usable and image is not None) else self._latest_usable_image()
             req, plan = await self._plan(gap, plan_img if self.plan_with_muse else None, image_id)
@@ -408,11 +438,94 @@ class InspectionAgent:
             self.trace.add("plan", "next_view", image_id=image_id, detail=req.model_dump())
             return self._step(seq, image_id, name, req, notes)
 
+    def _addresses(self, rec: ObservationRecord, req: NextViewRequest) -> bool:
+        """Did this photo show what the request targeted? Uses only the photo's own (validated) observation claims:
+        the target spec device identified unambiguously, with its ports reported for port-level gaps. Whether it
+        actually closed the gap is the policy's business; this only decides if it counts as an attempt."""
+        if not rec.usable:
+            return False
+        ext = rec.extraction
+        gap = next((g for a in self.assessments for g in a.gaps if g.key == req.gap_key), None)
+        if gap is None:
+            return True
+        amb = ambiguous_device_ids(ext)  # type: ignore[arg-type]
+
+        def shown(device_id: str, need_ports: bool, any_certainty: bool = False) -> bool:
+            for d in ext.devices:  # type: ignore[union-attr]
+                if d.spec_device_id != device_id or device_id in amb:
+                    continue
+                if not any_certainty and d.identification_certainty != "clear":
+                    continue
+                if not need_ports or d.ports_visible or any(p.device_ref == d.ref for p in ext.ports):  # type: ignore[union-attr]
+                    return True
+            return False
+
+        if gap.code == "CABLE_CONTINUITY":
+            return all(shown(e.device_id, False) for e in self.spec.requirement(gap.requirement_id).endpoints)
+        device_id = gap.context.get("device_id")
+        if not device_id:
+            return True
+        return shown(device_id, gap.code in _PORT_GAPS, any_certainty=gap.code == "DEVICE_NOT_SEEN")
+
+    def review_items(self) -> list[dict[str, Any]]:
+        """Open requirements blocked by a contradiction, with the conflicting evidence and its photos.
+
+        A contradiction cannot be removed by another photo of the unchanged installation (every photo keeps
+        counting), so it calls for review of the installation, not a camera instruction.
+        """
+        seq_of = {o.image_id: o.seq for o in self.observations}
+        out = []
+        for a in self.assessments:
+            gaps = [g for g in a.gaps if g.code == "CONTRADICTION"]
+            if a.status != "INSUFFICIENT_EVIDENCE" or not gaps:
+                continue
+            photos = sorted({seq_of[i] for g in gaps for i in g.context.get("images", []) if i in seq_of}
+                            | {x.seq for ep in a.endpoints if ep.state == "contradicted"
+                               for x in ep.support + ep.conflicts})
+            listed = ", ".join(f"photo {s}" for s in photos) or "earlier photos"
+            out.append({
+                "requirement_id": a.requirement_id, "photos": photos, "contradictions": list(a.contradictions),
+                "action": "review_installation",
+                "message": (f"Review needed for {a.requirement_id}: {listed} disagree "
+                            f"({'; '.join(g.target for g in gaps)}). Another photo of the unchanged installation "
+                            "cannot remove this conflict, because every photo keeps counting. Check the installation "
+                            "in person. If it was physically changed between photos, declare the change "
+                            "(installation_changed): earlier photos then stop counting and the inspection continues. "
+                            "If nothing changed, this requirement cannot be verified from these photos.")})
+        return out
+
+    def _unread_labels(self, gap: Gap) -> list[str]:
+        """Spec labels for the gap's target port(s) that no photo of the current configuration has legibly shown on
+        an unambiguously identified spec device."""
+        req = self.spec.requirement(gap.requirement_id)
+        idx = [gap.endpoint_index] if gap.endpoint_index is not None else [0, 1]
+        out: list[str] = []
+        for i in idx:
+            e = req.endpoints[i]
+            seen = False
+            for o in self.current_observations:
+                if not o.usable:
+                    continue
+                ext = o.extraction
+                if e.device_id in ambiguous_device_ids(ext):  # type: ignore[arg-type]
+                    continue
+                refs = {d.ref for d in ext.devices if d.spec_device_id == e.device_id}  # type: ignore[union-attr]
+                if any(p.device_ref in refs and label_matches(p, e) for p in ext.ports):  # type: ignore[union-attr]
+                    seen = True
+                    break
+            if not seen:
+                out += [e.port_label, *e.label_aliases]
+        return out
+
     def _devices_in_latest_view(self) -> set[str]:
+        """Spec devices clearly shown in the latest photo that showed any. Photos showing none of them (unusable,
+        or only unrelated equipment) do not move the guidance away from where the user last was."""
         for o in reversed(self.current_observations):
             if o.usable:
-                return {d.spec_device_id for d in o.extraction.devices  # type: ignore[union-attr]
+                seen = {d.spec_device_id for d in o.extraction.devices  # type: ignore[union-attr]
                         if d.spec_device_id and d.identification_certainty == "clear"}
+                if seen:
+                    return seen
         return set()
 
     def _latest_usable_image(self) -> NormalizedImage | None:
@@ -441,4 +554,4 @@ class InspectionAgent:
                     for r in self.requests if r.gap_key == gap.key]
         return await plan_next_view(self.client, self.spec, gap, image, recent, f"nv{len(self.requests) + 1}",
                                     evidence_state=self.evidence_state(), previous_requests=previous,
-                                    latest_image_id=latest_image_id)
+                                    latest_image_id=latest_image_id, unread_labels=self._unread_labels(gap))

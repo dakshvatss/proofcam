@@ -1,5 +1,23 @@
 # Progress log
 
+## 2026-11-02 — Milestone 2.2: next-view guidance and contradiction handling (offline; not committed)
+
+D28 unread-label guard (prompt rule + deterministic check + neutral templates), D29 on-target attempt accounting with
+request re-issue, D30 contradictions -> installation review and stop `contradiction_requires_review`. Files:
+`agent.py`, `muse.py`, `prompts.py` (planner prompt only), `policy.py` (contradiction gap wording only), `service.py`,
+`api_models.py` (additive `review_required`), `report.py`, GUIDE. No schema or endpoint change; no verdict rule change.
+
+Tests: `pytest -q` → **331 passed**, 1 live deselected (297 + 34 in `tests/test_guidance.py`), identical under
+`PYTHONHASHSEED` random/0/621. Three existing tests changed expectation by design (they asserted the removed
+behaviour): a contradiction no longer yields a CONTRADICTION camera request (test_sequences, test_verdict_correctness),
+and an unusable follow-up photo no longer triggers a planner call (test_persistence; its restored-image check now
+calls the planning step directly). Mutation check: 9 new guards each fail a test. All other M2.1 tests unchanged.
+
+The live smoke-test instruction ("...with the printed 'LAN 1' text beside its boot...") is now replaced by: "A plug is
+in a Router port whose printed label could not be read, so it is not yet known whether this is LAN 1. Photograph that
+port row closely from a low, angled position so that any label beside or under the plug can be read, and keep the
+neighbouring ports' labels in the same frame." Whether Muse itself now avoids the presumption is unverified (M2.4).
+
 ## 2026-11-02 — Milestone 2.1: verdict correctness (offline; no paid calls; not committed)
 
 Fixed the three classes of unsafe verdict confirmed in the M2.0 audit, in `policy.py` only (+ one report note):

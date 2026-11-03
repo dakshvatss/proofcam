@@ -286,13 +286,19 @@ def test_planner_receives_restored_image_bytes():
     observe(ag, "front.jpg")
     front = ag.images[ag.observations[0].image_id]
     ag = restart(ag, mock_factory(fm))
-    observe(ag, "kitchen.jpg")  # unusable: the planner must be shown the latest usable (restored) photo
+    n_chat = len([r for r in fm.requests if r.url.path.endswith("/chat/completions")])
+    s = observe(ag, "kitchen.jpg")  # unusable (M2.2): off-target, the same request is re-issued, no planner call
+    assert s.next_view.id == "nv1" and len(ag.requests) == 1
+    assert len([r for r in fm.requests if r.url.path.endswith("/chat/completions")]) == n_chat + 1  # observe only
+    # When planning is needed, the planner is shown the latest usable photo: the restored bytes.
+    assert ag._latest_usable_image() == front
+    gap = ag.assessments[0].gaps[0]
+    asyncio.run(ag._plan(gap, ag._latest_usable_image(), s.image_id))
     last = [json.loads(r.content) for r in fm.requests if r.url.path.endswith("/chat/completions")][-1]
     assert last["response_format"]["json_schema"]["name"] == PLAN
     urls = [c["image_url"]["url"] for m in last["messages"] if isinstance(m["content"], list)
             for c in m["content"] if c.get("type") == "image_url"]
     assert urls == [front.data_url()]
-    assert ag.requests[-1].based_on_image_id == front.image_id
 
 
 def test_replay_restart_between_every_photo_matches_uninterrupted():

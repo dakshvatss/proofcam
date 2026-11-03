@@ -282,7 +282,8 @@ def test_conflicting_traces_over_http_report_and_restart(tmp_path):
             r2 = await cap(c, iid, "to_port_3.jpg")
             a = r2.json()["assessments"][0]
             assert a["status"] == "INSUFFICIENT_EVIDENCE" and a["contradictions"]
-            assert r2.json()["next_view"]["gap_code"] == "CONTRADICTION"
+            # M2.2: no camera request for a contradiction; the inspection stops for review
+            assert r2.json()["next_view"] is None and r2.json()["stop_reason"] == "contradiction_requires_review"
         async with server(tmp_path, fm) as (c, store, _a):
             st = (await c.get(f"/api/inspections/{iid}")).json()
             assert st["assessments"][0]["contradictions"] and st["policy_drift"] == []

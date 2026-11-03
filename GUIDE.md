@@ -150,7 +150,9 @@ agent.py    observe()        one step of the loop:
   │
   ├─ 4. STOP?     all settled? photo budget used? gap tried twice already? → stop.
   │
-  └─ 5. PLAN      policy.py select_gap(): contradiction first, then the device in the latest photo,
+  └─ 5. PLAN      a requirement blocked by a contradiction gets no camera request: it needs installation review
+                  (stop `contradiction_requires_review` when nothing else is left). Otherwise
+                  policy.py select_gap(): the device in the latest photo first,
                   then the most basic missing piece. muse.py plan_next_view() asks Muse for a concrete camera
                   instruction, telling it what is already established and which instructions already failed.
                   If Muse fails, a fixed template is used instead (still names the device/port).
@@ -270,18 +272,22 @@ earlier photos stay in the report as superseded and stop counting. Undeclared mi
 ### Gaps: what's missing, in priority order
 | Gap code | Meaning | Typical next view |
 |---|---|---|
-| `CONTRADICTION` | Photos disagree about a port | Close, steady view of that port |
+| `CONTRADICTION` | Photos disagree (about a port, or where one cable runs) | **No photo**: review the installation; if it was changed, declare `installation_changed` |
 | `DEVICE_NOT_SEEN` | Device not identified with certainty | Step back, frame the whole device |
 | `PORTS_NOT_VISIBLE` | Device seen, ports not | Move to the side with the ports |
-| `LABEL_ILLEGIBLE` | Ports seen, labels unreadable (incl. a matching plug whose label is hidden by the plug) | Move closer / low angle so the label beside the plug is readable |
+| `LABEL_ILLEGIBLE` | Ports seen, labels unreadable (incl. a matching plug whose label is hidden by the plug) | Move closer / low angle so any label beside or under the plug can be read |
 | `PORT_NOT_FOUND` | Readable labels, but not the required one | Show the full port row |
 | `INSERTION_UNCLEAR` | Port found, plug state unclear | Closer view of the plug |
 | `GROUNDING_MISSING` | Muse claims a plug, SAM doesn't confirm it | Closer, unobstructed view |
 | `CABLE_CONTINUITY` | Both ends OK, cable not shown to be one cable | Wide shot of the whole cable run |
 
-Selection order: `CONTRADICTION` always first; then gaps on a device visible in the latest photo; then the
-table order. Each gap is requested at most twice, and the planner is told which instructions already failed. Muse's planner can also declare a gap impossible to resolve visually
-(e.g. the cable runs inside a wall); that gap is then abandoned.
+Selection order (contradictions excluded, see above): gaps on a device visible in the latest photo that showed any
+spec device; then the table order. Each gap gets at most two **on-target** attempts: a photo that doesn't show what
+was asked (unusable, another device, or the device without its ports for a port-level gap) is not counted, and the
+same request is re-issued without a new planner call (the photo and model-call budgets still apply). The planner is
+told which instructions already failed and which expected labels have never been read; guidance that presents an
+unread label as visible text ("the printed 'LAN 1' text") is replaced by neutral wording. Muse's planner can also
+declare a gap impossible to resolve visually (e.g. the cable runs inside a wall); that gap is then abandoned.
 
 ### Coordinates
 - Every coordinate refers to the **normalized image** (after rotation and resizing), never the original file.
