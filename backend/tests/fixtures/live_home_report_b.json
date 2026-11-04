@@ -1,0 +1,1418 @@
+{
+ "_provenance": "Recorded LIVE output (Meta Muse Spark 1.3 observation + SAM 3.1 link summaries), copied verbatim from the local live database: inspection insp_c3ff04e1cf55448f83a434123af852b6 (spec ps5_home_setup, \"Report B\"), photos 1-8, 2026-11-04. The photographs are not included. Photos 1, 4 and 8 are 492x440 files named IMG_617x; photos 2, 3, 5, 6 and 7 are larger uploads with UUID names. Which inputs were AI-generated was not recorded (the user stated that some were); nothing here depends on it. No SAM generic cable fallback existed at the time, so none was recorded.",
+ "trace_sources": [
+  "live",
+  "local"
+ ],
+ "photo_1": {
+  "seq": 1,
+  "image_id": "img_d854c51c403e",
+  "source_name": "IMG_6171.jpg",
+  "width": 492,
+  "height": 440,
+  "responding_to": null,
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Front view of a wooden table with a black Jio router on the left, a vertical white and black PlayStation 5 in the centre, and a black flat-panel TV on the right displaying a menu. No rear connection panels or ports are visible. Black cables are partially visible behind and beside the router.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "router",
+     "identification_basis": "Black rectangular box with circular Jio logo on front, matching router description",
+     "identification_certainty": "clear",
+     "visible_side": "front",
+     "ports_visible": false,
+     "box": {
+      "x1": 60,
+      "y1": 580,
+      "x2": 348,
+      "y2": 800
+     }
+    },
+    {
+     "ref": "D2",
+     "spec_device_id": "ps5",
+     "identification_basis": "Tall console with white outer covers around black centre body and PlayStation logo",
+     "identification_certainty": "clear",
+     "visible_side": "unknown",
+     "ports_visible": false,
+     "box": {
+      "x1": 348,
+      "y1": 272,
+      "x2": 634,
+      "y2": 798
+     }
+    },
+    {
+     "ref": "D3",
+     "spec_device_id": "tv",
+     "identification_basis": "Large black flat-panel television displaying Games/Media screen",
+     "identification_certainty": "clear",
+     "visible_side": "front",
+     "ports_visible": false,
+     "box": {
+      "x1": 592,
+      "y1": 222,
+      "x2": 977,
+      "y2": 776
+     }
+    }
+   ],
+   "ports": [],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "black",
+     "connector_type": "unclear",
+     "path_visibility": "mostly_hidden",
+     "connected_port_refs": []
+    },
+    {
+     "ref": "C2",
+     "color": "black",
+     "connector_type": "unclear",
+     "path_visibility": "mostly_hidden",
+     "connected_port_refs": []
+    }
+   ],
+   "unreadable_details": [
+    "Wi-Fi Router: any LAN port - rear not visible",
+    "PlayStation 5: HDMI OUT port - rear not visible",
+    "PlayStation 5: LAN port - rear not visible",
+    "Samsung Television: any HDMI input - rear/side panel not visible",
+    "Port labels, occupancy and connector shapes cannot be determined"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "game console",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       32.0,
+       289.0,
+       176.0,
+       394.0
+      ],
+      "confidence": 0.5936508178710938,
+      "mask_area_px": 13950
+     },
+     {
+      "object_id": "1",
+      "box_px": [
+       200.0,
+       135.0,
+       311.0,
+       394.0
+      ],
+      "confidence": 0.5816993117332458,
+      "mask_area_px": 25270
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "router",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       200.0,
+       135.0,
+       311.0,
+       394.0
+      ],
+      "confidence": 0.5936508178710938,
+      "mask_area_px": 25266
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "television",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       321.0,
+       111.0,
+       492.0,
+       382.0
+      ],
+      "confidence": 0.9649122953414917,
+      "mask_area_px": 37893
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "router",
+    "sam_object_id": "0",
+    "iou": 0.0,
+    "overlap_px": null,
+    "corroborated": false,
+    "note": "best SAM 'router' object 0: box IoU 0.00, Muse box 0% inside its box, mask covers 0% of the Muse box, 0% of the mask inside it, area ratio 2.10 -> not corroborated"
+   },
+   "D2": {
+    "concept": "game console",
+    "sam_object_id": "1",
+    "iou": 0.642,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'game console' object 1: box IoU 0.64, Muse box 74% inside its box, mask covers 66% of the Muse box, 85% of the mask inside it, area ratio 0.88 -> corroborated by box IoU"
+   },
+   "D3": {
+    "concept": "television",
+    "sam_object_id": "0",
+    "iou": 0.661,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'television' object 0: box IoU 0.66, Muse box 80% inside its box, mask covers 75% of the Muse box, 91% of the mask inside it, area ratio 1.00 -> corroborated by box IoU"
+   }
+  },
+  "port_links": {}
+ },
+ "photo_2": {
+  "seq": 2,
+  "image_id": "img_4dcce4d1046d",
+  "source_name": "F1A47879-0362-4020-98D1-6548B2648190.jpg",
+  "width": 1349,
+  "height": 1166,
+  "responding_to": "nv1",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close-up rear view of a black Wi-Fi router on a wooden surface with a blue Ethernet cable plugged into the leftmost yellow LAN port; three other yellow LAN ports empty and a separate black RJ45 socket and DC power jack visible.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "router",
+     "identification_basis": "Black rectangular box with ventilation holes on top and rear row of four yellow RJ45 sockets labeled LAN 2-4 plus separate black socket and DC power jack",
+     "identification_certainty": "clear",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 0,
+      "y1": 200,
+      "x2": 1000,
+      "y2": 756
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": "LAN",
+     "label_legibility": "illegible",
+     "occupancy": "cable_inserted",
+     "plug_color": "blue",
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 273,
+      "y1": 542,
+      "x2": 398,
+      "y2": 682
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P2",
+     "device_ref": "D1",
+     "label_read": "LAN 2",
+     "label_group": null,
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 400,
+      "y1": 545,
+      "x2": 524,
+      "y2": 672
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P3",
+     "device_ref": "D1",
+     "label_read": "LAN 3",
+     "label_group": null,
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 527,
+      "y1": 545,
+      "x2": 650,
+      "y2": 672
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P4",
+     "device_ref": "D1",
+     "label_read": "LAN 4",
+     "label_group": null,
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 654,
+      "y1": 543,
+      "x2": 788,
+      "y2": 672
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P5",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "illegible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 792,
+      "y1": 530,
+      "x2": 911,
+      "y2": 673
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P6",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "illegible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 106,
+      "y1": 554,
+      "x2": 204,
+      "y2": 675
+     },
+     "connector_type": "power"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "blue",
+     "connector_type": "ethernet",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P1"
+     ]
+    }
+   ],
+   "unreadable_details": [
+    "Exact label text for the occupied leftmost yellow LAN port (presumed LAN 1) is obscured by the inserted blue plug",
+    "Label/icon below the separate black RJ45 socket and below the DC power jack cannot be read"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       296.0,
+       691.0,
+       516.0,
+       1166.0
+      ],
+      "confidence": 0.8552036285400391,
+      "mask_area_px": 48804
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "router",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       0.0,
+       227.0,
+       1349.0,
+       890.0
+      ],
+      "confidence": 0.8202247023582458,
+      "mask_area_px": 836063
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "router",
+    "sam_object_id": "0",
+    "iou": 0.977,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'router' object 0: box IoU 0.98, Muse box 100% inside its box, mask covers 94% of the Muse box, 99% of the mask inside it, area ratio 1.02 -> corroborated by box IoU"
+   }
+  },
+  "port_links": {
+   "P1|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": "0",
+    "iou": null,
+    "overlap_px": 24335,
+    "corroborated": true,
+    "note": "SAM 'ethernet cable' mask covers 24335px of the port region"
+   },
+   "P1|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ },
+ "photo_3": {
+  "seq": 3,
+  "image_id": "img_52abd7a4a433",
+  "source_name": "2CEB03DD-B6C2-4DC8-8035-00C25969F83B.jpg",
+  "width": 1600,
+  "height": 900,
+  "responding_to": "nv2",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close-up of the rear of the black Wi-Fi router showing the power input, four yellow LAN ports LAN 1 to LAN 4, and a separate black RJ45 socket. A blue Ethernet cable is inserted in LAN 1 and runs out of frame at the bottom.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "router",
+     "identification_basis": "Black rectangular device with four yellow RJ45 sockets labeled LAN 1 to LAN 4, matching router description",
+     "identification_certainty": "clear",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 0,
+      "y1": 34,
+      "x2": 999,
+      "y2": 838
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P6",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 180,
+      "y1": 424,
+      "x2": 305,
+      "y2": 642
+     },
+     "connector_type": "power"
+    },
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": "LAN 1",
+     "label_group": "LAN",
+     "label_legibility": "legible",
+     "occupancy": "cable_inserted",
+     "plug_color": "blue",
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 342,
+      "y1": 420,
+      "x2": 512,
+      "y2": 622
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P2",
+     "device_ref": "D1",
+     "label_read": "LAN 2",
+     "label_group": "LAN",
+     "label_legibility": "partially_legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 514,
+      "y1": 434,
+      "x2": 625,
+      "y2": 626
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P3",
+     "device_ref": "D1",
+     "label_read": "LAN 3",
+     "label_group": "LAN",
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 624,
+      "y1": 438,
+      "x2": 733,
+      "y2": 628
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P4",
+     "device_ref": "D1",
+     "label_read": "LAN 4",
+     "label_group": "LAN",
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 731,
+      "y1": 438,
+      "x2": 839,
+      "y2": 626
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P5",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 855,
+      "y1": 462,
+      "x2": 949,
+      "y2": 632
+     },
+     "connector_type": "ethernet"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "blue",
+     "connector_type": "ethernet",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P1"
+     ]
+    }
+   ],
+   "unreadable_details": []
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       578.0,
+       399.0,
+       889.0,
+       900.0
+      ],
+      "confidence": 0.8400000333786011,
+      "mask_area_px": 87872
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "router",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       0.0,
+       35.0,
+       1596.0,
+       721.0
+      ],
+      "confidence": 0.6559139490127563,
+      "mask_area_px": 881835
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "router",
+    "sam_object_id": "0",
+    "iou": 0.948,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'router' object 0: box IoU 0.95, Muse box 95% inside its box, mask covers 76% of the Muse box, 100% of the mask inside it, area ratio 0.95 -> corroborated by box IoU"
+   }
+  },
+  "port_links": {
+   "P1|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": "0",
+    "iou": null,
+    "overlap_px": 51853,
+    "corroborated": true,
+    "note": "SAM 'ethernet cable' mask covers 51853px of the port region"
+   },
+   "P1|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ },
+ "photo_4": {
+  "seq": 4,
+  "image_id": "img_7254b65cb44c",
+  "source_name": "IMG_6174.jpg",
+  "width": 492,
+  "height": 440,
+  "responding_to": "nv3",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close-up of the rear of a PlayStation 5 with a blue Ethernet cable inserted in the LAN port and a black HDMI cable inserted in the HDMI port; one USB Type-A port is empty and a lower port is mostly obscured.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "ps5",
+     "identification_basis": "Tall console with white outer covers around black centre body with vent slats, matching PS5 rear",
+     "identification_certainty": "clear",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 181,
+      "y1": 0,
+      "x2": 829,
+      "y2": 995
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "cable_inserted",
+     "plug_color": "blue",
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 520,
+      "y1": 295,
+      "x2": 670,
+      "y2": 440
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P2",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 530,
+      "y1": 525,
+      "x2": 576,
+      "y2": 625
+     },
+     "connector_type": "usb"
+    },
+    {
+     "ref": "P3",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "cable_inserted",
+     "plug_color": "black",
+     "insertion_visibility": "partial",
+     "box": {
+      "x1": 523,
+      "y1": 672,
+      "x2": 768,
+      "y2": 920
+     },
+     "connector_type": "hdmi"
+    },
+    {
+     "ref": "P4",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "unclear",
+     "plug_color": null,
+     "insertion_visibility": "occluded",
+     "box": {
+      "x1": 524,
+      "y1": 925,
+      "x2": 566,
+      "y2": 985
+     },
+     "connector_type": "unclear"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "blue",
+     "connector_type": "ethernet",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P1"
+     ]
+    },
+    {
+     "ref": "C2",
+     "color": "black",
+     "connector_type": "hdmi",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P3"
+     ]
+    }
+   ],
+   "unreadable_details": [
+    "Port label text not visible/legible for any PS5 port",
+    "Other end/destination of both cables not visible - disappears out of frame",
+    "Router LAN ports and TV HDMI inputs not visible in this photo"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       264.0,
+       149.0,
+       492.0,
+       276.0
+      ],
+      "confidence": 0.5114504098892212,
+      "mask_area_px": 10002
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "game console",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "game console",
+    "sam_object_id": null,
+    "iou": 0.0,
+    "overlap_px": null,
+    "corroborated": false,
+    "note": "SAM found no 'game console'"
+   }
+  },
+  "port_links": {
+   "P1|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": "0",
+    "iou": null,
+    "overlap_px": 5523,
+    "corroborated": true,
+    "note": "SAM 'ethernet cable' mask covers 5523px of the port region"
+   },
+   "P1|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   },
+   "P3|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": "0",
+    "iou": null,
+    "overlap_px": 4,
+    "corroborated": false,
+    "note": "SAM 'ethernet cable' mask covers 4px of the port region"
+   },
+   "P3|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ },
+ "photo_5": {
+  "seq": 5,
+  "image_id": "img_d83ece614635",
+  "source_name": "B53D2678-6032-47E8-AAD0-BBFDF0FF8585.jpg",
+  "width": 1448,
+  "height": 1086,
+  "responding_to": "nv4",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close-up of the rear of a PlayStation 5 standing vertically, showing an empty LAN port on top, an empty USB Type-A port in the middle, and an HDMI port at the bottom with a black HDMI cable inserted.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "ps5",
+     "identification_basis": "Tall console with white outer covers around black centre body, rear vent grilles",
+     "identification_certainty": "clear",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 89,
+      "y1": 0,
+      "x2": 877,
+      "y2": 981
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 451,
+      "y1": 31,
+      "x2": 587,
+      "y2": 228
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P2",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 467,
+      "y1": 311,
+      "x2": 545,
+      "y2": 501
+     },
+     "connector_type": "usb"
+    },
+    {
+     "ref": "P3",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "cable_inserted",
+     "plug_color": "black",
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 450,
+      "y1": 557,
+      "x2": 612,
+      "y2": 863
+     },
+     "connector_type": "hdmi"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "black",
+     "connector_type": "hdmi",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P3"
+     ]
+    }
+   ],
+   "unreadable_details": [
+    "Exact port labels for LAN and HDMI OUT not legible in this view",
+    "Other PS5 rear ports (second USB, AC IN) are outside the cropped view"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "game console",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "game console",
+    "sam_object_id": null,
+    "iou": 0.0,
+    "overlap_px": null,
+    "corroborated": false,
+    "note": "SAM found no 'game console'"
+   }
+  },
+  "port_links": {
+   "P3|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'ethernet cable' mask reaches the port region"
+   },
+   "P3|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ },
+ "photo_6": {
+  "seq": 6,
+  "image_id": "img_08d1c4591f9c",
+  "source_name": "4209A48F-B652-4F33-AA66-2CDACBBADA34.jpg",
+  "width": 1448,
+  "height": 1086,
+  "responding_to": "nv5",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close-up of the rear connection area of a PlayStation 5 standing on a wooden surface, showing LAN, USB and HDMI ports with a black HDMI cable inserted in the HDMI port.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "ps5",
+     "identification_basis": "White outer covers with PlayStation logo around black centre body, rear vent pattern matching PlayStation 5 standard model",
+     "identification_certainty": "clear",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 0,
+      "y1": 0,
+      "x2": 907,
+      "y2": 990
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 576,
+      "y1": 0,
+      "x2": 701,
+      "y2": 151
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P2",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 605,
+      "y1": 237,
+      "x2": 681,
+      "y2": 434
+     },
+     "connector_type": "usb"
+    },
+    {
+     "ref": "P3",
+     "device_ref": "D1",
+     "label_read": "HDMI",
+     "label_group": null,
+     "label_legibility": "legible",
+     "occupancy": "cable_inserted",
+     "plug_color": "black",
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 594,
+      "y1": 542,
+      "x2": 872,
+      "y2": 829
+     },
+     "connector_type": "hdmi"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "black",
+     "connector_type": "hdmi",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P3"
+     ]
+    }
+   ],
+   "unreadable_details": [
+    "Exact LAN port label text not visible",
+    "Second USB Type-A port and AC IN power connector of PS5 not visible in this crop",
+    "Destination of HDMI cable beyond frame unknown"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "game console",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "game console",
+    "sam_object_id": null,
+    "iou": 0.0,
+    "overlap_px": null,
+    "corroborated": false,
+    "note": "SAM found no 'game console'"
+   }
+  },
+  "port_links": {
+   "P3|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'ethernet cable' mask reaches the port region"
+   },
+   "P3|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ },
+ "photo_7": {
+  "seq": 7,
+  "image_id": "img_6a9729db31f3",
+  "source_name": "00C0E4B7-8141-4976-BD2D-4F557BC58C78.jpg",
+  "width": 1448,
+  "height": 1086,
+  "responding_to": "nv6",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close-up rear view of PlayStation 5 standing on wooden surface. LAN port empty at top, USB Type-A empty in middle, HDMI port at bottom with black cable inserted and exiting frame to lower right.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "ps5",
+     "identification_basis": "Tall console with white outer covers around black centre body with vented rear, HDMI and USB and LAN arrangement matching PS5",
+     "identification_certainty": "clear",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 214,
+      "y1": 0,
+      "x2": 845,
+      "y2": 860
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 518,
+      "y1": 104,
+      "x2": 622,
+      "y2": 267
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P2",
+     "device_ref": "D1",
+     "label_read": "SS",
+     "label_group": null,
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 530,
+      "y1": 332,
+      "x2": 586,
+      "y2": 496
+     },
+     "connector_type": "usb"
+    },
+    {
+     "ref": "P3",
+     "device_ref": "D1",
+     "label_read": "HDMI",
+     "label_group": null,
+     "label_legibility": "legible",
+     "occupancy": "cable_inserted",
+     "plug_color": "black",
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 523,
+      "y1": 547,
+      "x2": 630,
+      "y2": 710
+     },
+     "connector_type": "hdmi"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "black",
+     "connector_type": "hdmi",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P3"
+     ]
+    }
+   ],
+   "unreadable_details": [
+    "Second USB Type-A port and AC IN power connector of PS5 not visible in this crop",
+    "Router LAN ports not visible",
+    "TV HDMI inputs not visible",
+    "Destination of HDMI cable beyond frame unknown"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "game console",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "game console",
+    "sam_object_id": null,
+    "iou": 0.0,
+    "overlap_px": null,
+    "corroborated": false,
+    "note": "SAM found no 'game console'"
+   }
+  },
+  "port_links": {
+   "P3|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'ethernet cable' mask reaches the port region"
+   },
+   "P3|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ },
+ "photo_8": {
+  "seq": 8,
+  "image_id": "img_d0298a933e99",
+  "source_name": "IMG_6175.jpg",
+  "width": 492,
+  "height": 440,
+  "responding_to": "nv7",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close-up of rear/side of black television showing HDMI input area with a black HDMI cable inserted into the HDMI 1 port. Labels for HDMI 1, HDMI 2 and HDMI 3 (ARC) are visible.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "tv",
+     "identification_basis": "Large black television chassis with vertical row labeled HDMI 1, HDMI 2, HDMI 3 (ARC), matching described TV connection panel",
+     "identification_certainty": "uncertain",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 45,
+      "y1": 0,
+      "x2": 960,
+      "y2": 990
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": "HDMI 1",
+     "label_group": null,
+     "label_legibility": "legible",
+     "occupancy": "cable_inserted",
+     "plug_color": "black",
+     "insertion_visibility": "partial",
+     "box": {
+      "x1": 370,
+      "y1": 315,
+      "x2": 730,
+      "y2": 625
+     },
+     "connector_type": "hdmi"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "black",
+     "connector_type": "hdmi",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P1"
+     ]
+    }
+   ],
+   "unreadable_details": [
+    "Physical openings for HDMI 2 and HDMI 3 ports not visible in frame",
+    "USB ports on TV panel not visible",
+    "Brand logo not visible to confirm Samsung",
+    "Destination of the HDMI cable beyond frame unknown"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "television",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "television",
+    "sam_object_id": null,
+    "iou": 0.0,
+    "overlap_px": null,
+    "corroborated": false,
+    "note": "SAM found no 'television'"
+   }
+  },
+  "port_links": {
+   "P1|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'ethernet cable' mask reaches the port region"
+   },
+   "P1|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ }
+}

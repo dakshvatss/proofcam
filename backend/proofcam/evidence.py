@@ -33,6 +33,9 @@ class GroundingLink(BaseModel):
     overlap_px: int | None = None
     corroborated: bool
     note: str
+    # No new fields here: stored ObservationRecords are compared byte-for-byte on commit. A generic-fallback link
+    # (grounding.FALLBACK_CABLE_CONCEPT) is recognisable because it is stored under the requirement's own concept key
+    # ('P3|hdmi cable') while its `concept` is the fallback concept ('cable').
 
 
 class ObservationRecord(BaseModel):
@@ -63,6 +66,9 @@ EndpointState = Literal["established", "violated", "contradicted", "unknown"]
 GapCode = Literal[
     "CONTRADICTION",
     "DEVICE_NOT_SEEN",
+    # Ports of the device were photographed, but only on a device whose identification was uncertain in that photo,
+    # so they are not evidence; one photo must tie the device's identifying features to its ports.
+    "DEVICE_UNCONFIRMED",
     "PORTS_NOT_VISIBLE",
     "LABEL_ILLEGIBLE",
     "PORT_NOT_FOUND",
@@ -84,6 +90,9 @@ class EvidenceItem(BaseModel):
     grounding: GroundingLink | None = None
     # How the port in this item was identified (None for non-port evidence such as a cable trace).
     port_basis: PortIdentityBasis | None = None
+    # How the DEVICE was identified in this photo: None = Muse identified it with clear certainty (the default);
+    # "operator_declared" = Muse was uncertain and the person inspecting confirmed it (an OperatorDeclaration).
+    device_basis: Literal["operator_declared"] | None = None
 
 
 class Gap(BaseModel):
@@ -109,6 +118,9 @@ class EndpointAssessment(BaseModel):
     # Plug evidence at a port identified only by layout inference while the requirement does not permit
     # inference. Recorded for audit and guidance; never counted as support.
     inferred_only: list[EvidenceItem] = Field(default_factory=list)
+    # Observed by Muse with every check met EXCEPT SAM corroboration at the port. Recorded so the report shows what
+    # was seen; never support, never counted toward any verdict.
+    candidates: list[EvidenceItem] = Field(default_factory=list)
     gap: Gap | None = None
 
 
@@ -117,11 +129,21 @@ class RequirementAssessment(BaseModel):
     status: RequirementStatus
     explanation: str
     endpoints: list[EndpointAssessment]
-    identity_state: Literal["established", "assumed_by_spec", "unknown", "not_evaluated"]
+    # established = traced in one photo; assumed_by_spec = spec asserts the cable is unique; declared_by_operator =
+    # the person inspecting declared it (permitted by the spec, never against visible contrary evidence).
+    identity_state: Literal["established", "assumed_by_spec", "declared_by_operator", "unknown", "not_evaluated"]
     identity_evidence: list[EvidenceItem] = Field(default_factory=list)
     gaps: list[Gap] = Field(default_factory=list)
     contradictions: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+    # What a VERIFIED / VIOLATED verdict rests on (None while INSUFFICIENT_EVIDENCE, and on records made before M3.7):
+    #   visual            - photos alone (Muse claims grounded by SAM, labels read directly);
+    #   spec_assumption   - also on assumptions the spec author made (socket shape, layout, unique cable, SAM's
+    #                       generic 'cable' fallback); listed in `assumptions`;
+    #   operator_assisted - also on statements by the person inspecting; listed in `operator_declarations`.
+    # The verdict itself is unchanged by this field; it says how much of it was independently observed.
+    assurance: Literal["visual", "spec_assumption", "operator_assisted"] | None = None
+    operator_declarations: list[str] = Field(default_factory=list)
 
 
 class OverallAssessment(BaseModel):
@@ -148,3 +170,51 @@ class NextViewRequest(BaseModel):
     after_image_id: str | None = Field(None, description="Photo after which this request was issued.")
     gap_key: str | None = None
     planner_error: str | None = None
+
+
+ViewStatus = Literal["captured", "partial", "not_captured"]
+
+
+class ViewCheck(BaseModel):
+    """Did a photo show what the pending camera request asked for?
+
+    Camera-guidance bookkeeping only. It is computed from the photo's structured observation claims and the
+    request's structured gap (never from free text), and it is independent of evidence acceptance and of the
+    verdict: a photo can show exactly the requested view and still contribute no accepted evidence (for example
+    when the device's identity is not confirmed, or a plug sits in a port of unknown identity).
+    """
+
+    request_id: str
+    gap_key: str | None
+    requirement_id: str
+    status: ViewStatus
+    shown: list[str] = Field(default_factory=list)  # parts of the requested view this photo showed
+    missing: list[str] = Field(default_factory=list)  # parts it did not show
+    # Target device(s) identified with certainty in this photo (None: no target device shown). An uncertain
+    # identification still makes the view relevant, but its ports are not used as evidence.
+    identity_confirmed: bool | None = None
+    unconfirmed_devices: list[str] = Field(default_factory=list)  # names of shown target devices not confirmed
+    # Counted against the request's gap-attempt limit. False = off-target: refunded; the same request still applies.
+    counted_as_attempt: bool
+
+
+DeclarationKind = Literal["device_identity", "cable_identity"]
+
+
+class OperatorDeclaration(BaseModel):
+    """A statement made by the person inspecting, recorded verbatim with when it was made.
+
+    Never model output and never proof. The policy uses it only where the spec permits it and only within the limits
+    in policy.py (an uncertain device claim in that one photo; a cable identity between two endpoints that photos
+    already support, with no contrary trace). Every verdict that relies on one says so (assurance
+    "operator_assisted").
+    """
+
+    id: str
+    kind: DeclarationKind
+    epoch: int
+    statement: str  # the exact sentence the person confirmed
+    seq: int | None = None  # device_identity: the photo
+    device_id: str | None = None  # device_identity: the spec device
+    requirement_id: str | None = None  # cable_identity: the requirement
+    created_at: float

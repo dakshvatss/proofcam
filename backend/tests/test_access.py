@@ -219,18 +219,20 @@ def test_spend_cap_counts_every_inspection_and_is_a_hard_backstop(tmp_path):
 
     async def go():
         # Pre-check disabled (reserve 0) to exercise the in-transaction backstop.
-        cfg = ServiceConfig(model_source="mock", global_call_limit=6, capture_call_reserve=0)
+        # 5 = the overview's 4 calls (M3.7: no cable concept is sent for a photo without occupied ports) + one Muse
+        # call for the second inspection, so its SAM calls are refused.
+        cfg = ServiceConfig(model_source="mock", global_call_limit=5, capture_call_reserve=0)
         async with app_client(tmp_path, fm, config=cfg) as (c, store):
             a = await create(c)
             r = await c.post(f"/api/inspections/{a}/captures", **upload("front.jpg"), headers={"Idempotency-Key": "a1"})
             assert r.status_code == 200
             used = store.total_model_calls()
-            assert used == len(fm.requests) and used < 6
+            assert used == len(fm.requests) == 4
             b = await create(c)
             r = await c.post(f"/api/inspections/{b}/captures", **upload("rear.jpg"), headers={"Idempotency-Key": "b1"})
             assert r.status_code == 200
             # never more HTTP requests than the cap, across both inspections
-            assert len(fm.requests) == store.total_model_calls() == 6
+            assert len(fm.requests) == store.total_model_calls() == 5
             # SAM was refused, so the plug cannot be grounded: the cap never turns into a false verification.
             assert r.json()["assessments"][0]["status"] == "INSUFFICIENT_EVIDENCE"
             calls = (await c.get(f"/api/inspections/{b}")).json()["usage"]

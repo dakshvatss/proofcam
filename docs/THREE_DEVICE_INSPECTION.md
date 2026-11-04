@@ -13,7 +13,7 @@ only; it has not yet been run on the real hardware with live models.
 | Photos | up to 8 (`max_photos`; hard maximum 10). The per-inspection 40-call budget and the server cap still bind |
 
 **Why these port rules, and nothing looser:**
-- **Router:** its five RJ45 sockets include an upstream port. Shape cannot tell LAN from WAN, so only legible
+- **Router:** besides LAN 1–4 it has a separate RJ45 socket of unknown role. Shape cannot tell LAN from WAN, so only legible
   printed text can.
 - **PS5:** Sony documents one LAN and one HDMI OUT port, so the spec asserts that the console's Ethernet socket and
   its HDMI socket are those ports.
@@ -27,6 +27,10 @@ only; it has not yet been run on the real hardware with live models.
   INSUFFICIENT_EVIDENCE otherwise.
 - **An empty permitted port** (a free LAN port, an unused TV input) is never a violation. A WAN port, an unreadable
   router label, a number without a "LAN" heading, or a socket of unclear shape never qualifies.
+- **A router rear-panel photo** counts as the requested view even when the router is identified only with
+  uncertainty. Its ports are then not evidence, and the next request asks for one view tying the router's
+  identifying features to its ports. A plug in a socket with no readable label leaves R1 INSUFFICIENT; LAN 1–4
+  seen empty do not show where the cable is.
 - **Practically, R1 will usually end INSUFFICIENT_EVIDENCE** if the Ethernet cable from the wall-mounted router
   cannot be photographed end to end. That is the correct outcome under the cable-identity rule, not a defect.
 - **R2 can reach VERIFIED** if one photo shows the HDMI cable from the console's HDMI socket to a TV HDMI input,

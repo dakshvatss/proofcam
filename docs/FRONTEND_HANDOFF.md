@@ -81,6 +81,13 @@ Body: `{"type": "installation_changed", "reason": "<1–500 chars>"}`. Declares 
 become `superseded` (kept, no longer counted), gap attempts reset, a non-budget stop is reopened. Free.
 409 `cannot_reopen` if stopped by a budget; 409 `inspection_busy` during a capture.
 
+**M3.7 operator statements** (same route, free, no model calls):
+- Body: `{"type": "device_identity", "seq": 8, "device_id": "tv", "confirm": true}` or
+  `{"type": "cable_identity", "requirement_id": "R1", "confirm": true}`.
+- Refused with 422 `declaration_refused` unless the spec permits it and the evidence exists. Offer them only where a
+  gap's `context.declaration_permitted` is true.
+- Verdicts relying on a statement carry `assurance: "operator_assisted"` and list `operator_declarations`. Show both.
+
 ### `GET /api/inspections/{id}/report?format=json|md`
 JSON report (adds `policy_drift`, `persistent_usage`, `engine_version {recorded, current}`, `version`,
 `review_required`) or Markdown (`text/markdown`).
@@ -100,7 +107,14 @@ INSUFFICIENT_EVIDENCE. Show it as is; never compute your own. Spec requirements 
 
 `StepResponse`: `inspection_id, seq, image_id, duplicate_of (int|null), notes[str], status ("open"|"stopped"),
 stop_reason, assessments[RequirementAssessment], next_view (NextViewRequest|null), review_required[ReviewItem],
-version, usage, replayed (bool)`.
+view_check (ViewCheck|null), version, usage, replayed (bool)`.
+
+`ViewCheck` (M3.6; also stored as `history[].view_check`): `request_id, gap_key, requirement_id, status
+("captured"|"partial"|"not_captured"), shown[str], missing[str], identity_confirmed (bool|null),
+unconfirmed_devices[str], counted_as_attempt (bool)`. It answers only "did this photo show the view the previous
+request asked for?". It is independent of the evidence accepted and of every verdict, and it is null when no
+request was pending. `GapCode` includes `DEVICE_UNCONFIRMED`: the ports were seen, but the device was not
+identified with certainty.
 
 `InspectionState`: `id, spec_id, title, status, stop_reason, epoch, version, engine_version, engine_changed,
 policy_drift[str], busy, spec, photos[PhotoInfo], assessments, next_view, review_required, exhausted_gaps{key: reason},

@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, MAX_UPLOAD_BYTES, NetworkError, api, newIdempotencyKey } from '../api/client'
-import type { InspectionState, StepResponse } from '../api/types'
+import type { DeclarationRequest, InspectionState, StepResponse } from '../api/types'
 import { currentGuidance } from '../lib/guidance'
 
 export const STORAGE_KEY = 'proofcam.inspectionId'
@@ -325,9 +325,24 @@ export function useInspection() {
     }
   }, [inspection])
 
+  const declare = useCallback(async (body: DeclarationRequest): Promise<boolean> => {
+    if (!inspection || inFlight.current) return false
+    inFlight.current = true
+    try {
+      setInspection(await api.declare(inspection.id, body))
+      setNotice({ kind: 'info', text: 'Your statement was recorded. Any verdict that relies on it is marked as relying on your statement.' })
+      return true
+    } catch (e) {
+      setNotice({ kind: 'error', text: `Could not record the statement: ${(e as Error).message}` })
+      return false
+    } finally {
+      inFlight.current = false
+    }
+  }, [inspection])
+
   return {
     inspection, lastStep, phase, pending, notice, uploadStartedAt,
-    start, load, leave, stagePhoto, discardPhoto, sendPhoto, declareChange,
+    start, load, leave, stagePhoto, discardPhoto, sendPhoto, declareChange, declare,
   }
 }
 

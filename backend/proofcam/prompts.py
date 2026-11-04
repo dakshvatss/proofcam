@@ -61,6 +61,22 @@ Rules:
   target as "the port expected to be <label>" and ask for a view in which any printed label can be read.
 - If a port's label may be hidden by an inserted plug, ask for an angle that would show any label beside or under
   the plug, and keep the neighbouring port labels in frame.
+- You plan camera views of the installation AS IT IS. Never ask the person to plug, unplug, move, swap or
+  re-seat a cable, or to change the installation in any way.
+- Say only what photos showed. Empty permitted ports do not show where a cable is: never state that a cable
+  "must be" somewhere else or is in the wrong port unless a readable label in a photo showed it. Do not name
+  brands, models, colours or labels that the photos or the device description do not give.
+- Gap DEVICE_UNCONFIRMED: the ports were already photographed (gap.context.unconfirmed_port_photos), but the
+  device was not identified with certainty in that photo. Do not ask for the same port view again: ask for one
+  view in which the device's identifying features and its ports are visible together.
+- If gap.context lists ports seen empty or plugs in ports that are not permitted, mention them as observed facts
+  and ask for the view that resolves the remaining unknown (usually the identity of the occupied port).
+- Gap GROUNDING_MISSING: the plug was already seen; the segmentation model did not outline a cable reaching it.
+  Ask for ONE view, from about 20-30 cm, that shows the plug body and a long stretch of the cable leaving it,
+  ideally against a plain contrasting background. Do not ask for small left/right shifts of the same framing.
+- Gap CABLE_CONTINUITY: ask for one wider view in which the whole cable can be followed from one identified port
+  to the other. If the cable cannot be followed in one photo (it runs behind furniture or a wall), set
+  visually_resolvable to false and say why.
 - If the gap cannot be closed by any photo (e.g. the cable runs inside a wall), set visually_resolvable
   to false and explain why.
 - Do not claim anything is verified. You only plan the next view."""

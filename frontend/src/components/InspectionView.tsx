@@ -4,7 +4,8 @@ import { currentGuidance, guidanceIsStale } from '../lib/guidance'
 import { TEMPLATE_NAME, cn } from '../lib/utils'
 import type { InspectionSession } from '../state/useInspection'
 import { CameraPanel, CaptureFrame, ControlBar } from './CameraPanel'
-import { ChangeDialog, ProcessingCard } from './Dialogs'
+import type { DeclarationRequest } from '../api/types'
+import { ChangeDialog, DeclareDialog, ProcessingCard } from './Dialogs'
 import { GuidanceCard, ProgressPanel, PromptCard, ReviewCard, StopCard, VerdictBadge, VerdictCard } from './Evidence'
 import { PhotoHistory, PhotoViewer } from './Photos'
 import { LastPhotoCard, Timeline } from './Timeline'
@@ -22,6 +23,7 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
   // A photo the user picked stays shown until a newer photo arrives; then the newest is shown.
   const [picked, setPicked] = useState<{ seq: number; whenLatest: number | null } | null>(null)
   const [changeOpen, setChangeOpen] = useState(false)
+  const [declaring, setDeclaring] = useState<{ req: DeclarationRequest; statement: string; detail: string } | null>(null)
   const latest = st.photos.length ? st.photos[st.photos.length - 1].seq : null
   const selected = picked && picked.whenLatest === latest ? picked.seq : latest
   const setSelected = (seq: number) => setPicked({ seq, whenLatest: latest })
@@ -34,7 +36,15 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
 
   const open = st.status === 'open'
   const working = s.phase === 'uploading' || s.phase === 'recovering' || s.phase === 'loading'
-  const canCapture = open && s.phase === 'ready' && !st.busy
+  // Limits (server figures only). Photos and model calls are separate budgets; whichever runs out first ends the
+  // inspection. Below photo_min_calls a photo could not be analysed AND grounded, so capture is switched off.
+  const u = st.usage
+  const minCalls = u.photo_min_calls ?? 2
+  const photosLeft = u.max_photos != null && u.photos_used != null ? Math.max(0, u.max_photos - u.photos_used) : null
+  const callsLow = open && u.remaining < minCalls
+  const nearLimit = open && !callsLow && st.photos.length > 0
+    && ((photosLeft !== null && photosLeft <= 2) || u.remaining < minCalls * 4)
+  const canCapture = open && s.phase === 'ready' && !st.busy && !callsLow
   const assessed = st.assessments.length ? st.assessments : null
   const reopenable = st.stop_reason !== 'observation_budget_exhausted' && st.stop_reason !== 'model_call_budget_exhausted'
   const multi = st.spec.requirements.length > 1
@@ -97,6 +107,19 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
       <div className="contents lg:flex lg:flex-col lg:gap-5">
         {showCapture && (
           <div className={cn(o.capture, 'space-y-3')}>
+            {callsLow && (
+              <Callout tone="error" title="Model-call limit reached">
+                This inspection has {u.remaining} of its {u.model_call_limit} model calls left, fewer than the {minCalls} a
+                photo needs to be analysed and grounded, so the camera is off. The verdicts below stand as they are; open
+                the report, or start a new inspection.
+              </Callout>
+            )}
+            {nearLimit && (
+              <Callout tone="warn" title="Approaching this inspection's limits">
+                {photosLeft !== null ? `${photosLeft} of ${u.max_photos} photos and ` : ''}{u.remaining} of {u.model_call_limit} model
+                calls left. Take the view requested below first.
+              </Callout>
+            )}
             {s.phase === 'uploading' && (
               <ProcessingCard startedAt={s.uploadStartedAt} label="Analysing your photo…" image={s.pending?.url} live={modelSource === 'live'} />
             )}
@@ -163,7 +186,10 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
 
         {(assessed || showStop) && (
           <div className={cn(o.verdicts, 'space-y-5')}>
-            {assessed?.map((a) => <VerdictCard key={a.requirement_id} a={a} spec={st.spec} onShowPhoto={showPhoto} />)}
+            {assessed?.map((a) => (
+              <VerdictCard key={a.requirement_id} a={a} spec={st.spec} onShowPhoto={showPhoto}
+                onDeclare={working ? undefined : (req, statement, detail) => setDeclaring({ req, statement, detail })} />
+            ))}
             {showStop && <StopCard reason={st.stop_reason!} onDeclare={() => setChangeOpen(true)} />}
           </div>
         )}
@@ -173,7 +199,7 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
           <footer className="space-y-1.5 px-1 text-xs leading-relaxed text-fg-subtle">
             <p className="tabular-nums">
               {st.usage.model_calls} of {st.usage.model_call_limit} model calls used · est. ${st.usage.estimated_cost_usd.toFixed(3)}
-              {st.spec.max_photos ? ` · up to ${st.spec.max_photos} photos` : ''}
+              {u.max_photos ? ` · ${st.photos.length} of ${u.max_photos} photos` : st.spec.max_photos ? ` · up to ${st.spec.max_photos} photos` : ''}
             </p>
             <p>{st.disclaimer}</p>
           </footer>
@@ -181,6 +207,10 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
       </div>
 
       {changeOpen && <ChangeDialog open onCancel={() => setChangeOpen(false)} onConfirm={s.declareChange} />}
+      {declaring && (
+        <DeclareDialog statement={declaring.statement} detail={declaring.detail} onCancel={() => setDeclaring(null)}
+          onConfirm={() => s.declare(declaring.req)} />
+      )}
     </div>
   )
 }

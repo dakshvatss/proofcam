@@ -6,6 +6,7 @@ export type EndpointState = 'established' | 'violated' | 'contradicted' | 'unkno
 export type GapCode =
   | 'CONTRADICTION'
   | 'DEVICE_NOT_SEEN'
+  | 'DEVICE_UNCONFIRMED'
   | 'PORTS_NOT_VISIBLE'
   | 'LABEL_ILLEGIBLE'
   | 'PORT_NOT_FOUND'
@@ -41,7 +42,9 @@ export interface EvidenceItem {
   device_ref?: string | null
   claim: string
   grounding?: GroundingLink | null
-  port_basis?: 'direct_label' | 'layout_inference' | null
+  port_basis?: 'direct_label' | 'layout_inference' | 'connector_shape' | null
+  /** null: Muse identified the device with certainty. operator_declared: the person inspecting confirmed it. */
+  device_basis?: 'operator_declared' | null
 }
 
 export interface Gap {
@@ -61,6 +64,8 @@ export interface EndpointAssessment {
   support: EvidenceItem[]
   conflicts: EvidenceItem[]
   inferred_only: EvidenceItem[]
+  /** Seen by Muse with every check met except SAM corroboration: recorded, never counted (absent before M3.7). */
+  candidates?: EvidenceItem[]
   gap: Gap | null
 }
 
@@ -69,11 +74,48 @@ export interface RequirementAssessment {
   status: RequirementStatus
   explanation: string
   endpoints: EndpointAssessment[]
-  identity_state: 'established' | 'assumed_by_spec' | 'unknown' | 'not_evaluated'
+  identity_state: 'established' | 'assumed_by_spec' | 'declared_by_operator' | 'unknown' | 'not_evaluated'
   identity_evidence: EvidenceItem[]
   gaps: Gap[]
   contradictions: string[]
   assumptions: string[]
+  /** What a final verdict rests on (null while not enough evidence, and on records before M3.7). */
+  assurance?: Assurance | null
+  /** Statements by the person inspecting that this verdict relies on. */
+  operator_declarations?: string[]
+}
+
+export type Assurance = 'visual' | 'spec_assumption' | 'operator_assisted'
+
+/** A statement made by the person inspecting, recorded verbatim. Never model output, never proof. */
+export interface OperatorDeclaration {
+  id: string
+  kind: 'device_identity' | 'cable_identity'
+  epoch: number
+  statement: string
+  seq?: number | null
+  device_id?: string | null
+  requirement_id?: string | null
+  created_at: number
+}
+
+export type DeclarationRequest =
+  | { type: 'device_identity'; seq: number; device_id: string }
+  | { type: 'cable_identity'; requirement_id: string }
+
+/** Did a photo show the view the previous camera request asked for? Guidance bookkeeping only: independent of
+ * the evidence the policy accepted and of every verdict. */
+export type ViewStatus = 'captured' | 'partial' | 'not_captured'
+export interface ViewCheck {
+  request_id: string
+  gap_key: string | null
+  requirement_id: string
+  status: ViewStatus
+  shown: string[]
+  missing: string[]
+  identity_confirmed: boolean | null
+  unconfirmed_devices: string[]
+  counted_as_attempt: boolean
 }
 
 export interface NextViewRequest {
@@ -108,6 +150,11 @@ export interface Usage {
   calls_by_status: Record<string, number>
   estimated_cost_usd: number
   cost_basis: string
+  /** Photo budget, separate from the call budget (absent on responses stored before M3.7). */
+  photos_used?: number | null
+  max_photos?: number | null
+  /** Fewer calls left than this: a photo could not be analysed and grounded, so capture is disabled. */
+  photo_min_calls?: number | null
 }
 
 export interface PhotoInfo {
@@ -169,6 +216,7 @@ export interface InspectionSpec {
   devices: { id: string; name: string; description: string; sam_concept: string }[]
   requirements: ConnectionRequirement[]
   max_photos?: number | null
+  allow_device_identity_declarations?: boolean
 }
 
 export type StopReason =
@@ -199,6 +247,7 @@ export interface InspectionState {
   review_required: ReviewItem[]
   exhausted_gaps: Record<string, string>
   history: Record<string, unknown>[]
+  declarations?: OperatorDeclaration[]
   usage: Usage
   disclaimer: string
 }
@@ -215,6 +264,7 @@ export interface StepResponse {
   overall?: OverallAssessment | null
   next_view: NextViewRequest | null
   review_required: ReviewItem[]
+  view_check?: ViewCheck | null
   version: number
   usage: Usage
   replayed: boolean

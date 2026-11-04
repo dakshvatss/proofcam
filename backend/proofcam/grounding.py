@@ -30,6 +30,14 @@ DEVICE_MAX_AREA_RATIO = 5.0  # SAM box area at most 5x the Muse box area (antenn
 PORT_EXPAND = 0.5          # grow the Muse port box by 50% each side before testing overlap
 PORT_MIN_PX = 30
 PORT_MIN_FRAC = 0.05
+# Generic fallback (M3.7). Recorded live runs: SAM 'hdmi cable' segmented nothing in 12 of 12 photos, including clear
+# close-ups of an inserted HDMI plug, while 'ethernet cable' found 6 of 12. When a requirement's own concept returns
+# NO object at all in a photo and Muse explicitly reports an occupied port of that connector family, one extra SAM call
+# with this generic concept is made (within Budget.max_sam_calls_per_image). It is held to a tighter region and must
+# not also reach an occupied port of another connector family. It corroborates that a cable is physically at the port;
+# the connector family stays Muse's reading, and every verdict relying on it says so.
+FALLBACK_CABLE_CONCEPT = "cable"
+FALLBACK_PORT_EXPAND = 0.25
 
 
 @dataclass
@@ -170,4 +178,64 @@ def link_ports(ext: ObservationExtraction, run: GroundingRun, cable_concepts: li
                 concept=concept, sam_object_id=best_id, overlap_px=best_px, corroborated=ok,
                 note=(f"SAM '{concept}' mask covers {best_px}px of the port region"
                       if best_id else f"no SAM '{concept}' mask reaches the port region"))
+    return links
+
+
+def fallback_targets(ext: ObservationExtraction, run: GroundingRun,
+                     concept_by_connector: dict[str, str]) -> dict[str, list[str]]:
+    """port_ref -> requirement concepts that need the generic fallback: the port is occupied, Muse EXPLICITLY reports
+    the requirement's connector family there, it has a box, and SAM ran that concept on this photo and segmented no
+    object at all (a recall failure of the concept, not 'the cable is elsewhere')."""
+    empty = {g.concept for g in run.groundings if g.status == "ok" and not g.objects}
+    out: dict[str, list[str]] = {}
+    for p in ext.ports:
+        concept = concept_by_connector.get(p.connector_type or "")
+        if (p.occupancy == "cable_inserted" and p.box is not None and concept in empty
+                and concept != FALLBACK_CABLE_CONCEPT):
+            out.setdefault(p.ref, []).append(concept)  # type: ignore[arg-type]
+    return out
+
+
+def link_ports_fallback(ext: ObservationExtraction, run: GroundingRun, targets: dict[str, list[str]],
+                        width: int, height: int) -> dict[str, GroundingLink]:
+    """Links for `targets` from the generic FALLBACK_CABLE_CONCEPT, stored under each requirement's own key
+    ('P3|hdmi cable') with concept 'cable', so the policy and the report can tell them apart. Stricter than
+    link_ports: region grown by FALLBACK_PORT_EXPAND only, and the chosen object must not also reach an occupied port
+    whose connector family differs (one tangle of cables cannot corroborate two kinds of plug)."""
+    g = next((x for x in run.groundings if x.concept == FALLBACK_CABLE_CONCEPT), None)
+    if g is None or g.status != "ok":
+        return {}
+    by_ref = {p.ref: p for p in ext.ports}
+
+    def region(p):
+        return expand_box(p.box.to_pixels(width, height), FALLBACK_PORT_EXPAND, width, height)
+
+    def reach(oid: str, p) -> int:
+        return mask_pixels_in_box(run.masks[(FALLBACK_CABLE_CONCEPT, oid)], region(p))
+
+    def enough(px: int, p) -> bool:
+        r = region(p)
+        return px >= max(PORT_MIN_PX, PORT_MIN_FRAC * max(1.0, (r[2] - r[0]) * (r[3] - r[1])))
+
+    links: dict[str, GroundingLink] = {}
+    for ref, concepts in targets.items():
+        p = by_ref[ref]
+        best_id, best_px = None, 0
+        for o in g.objects:
+            if (FALLBACK_CABLE_CONCEPT, o.object_id) in run.masks and (px := reach(o.object_id, p)) > best_px:
+                best_id, best_px = o.object_id, px
+        ok = best_id is not None and enough(best_px, p)
+        why = (f"generic SAM '{FALLBACK_CABLE_CONCEPT}' mask covers {best_px}px of the port region"
+               if best_id else f"no generic SAM '{FALLBACK_CABLE_CONCEPT}' mask reaches the port region")
+        if ok:
+            other = [q.ref for q in ext.ports
+                     if q.ref != ref and q.occupancy == "cable_inserted" and q.box is not None
+                     and q.connector_type != p.connector_type and enough(reach(best_id, q), q)]  # type: ignore[arg-type]
+            if other:
+                ok = False
+                why += f", but the same mask also reaches {', '.join(other)} (another connector): ambiguous"
+        for concept in concepts:
+            links[f"{ref}|{concept}"] = GroundingLink(
+                concept=FALLBACK_CABLE_CONCEPT, sam_object_id=best_id, overlap_px=best_px, corroborated=ok,
+                note=f"fallback: SAM '{concept}' segmented nothing in this photo; {why}")
     return links

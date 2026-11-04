@@ -12,7 +12,7 @@ Built for the Meta Global AI Developer Hackathon 2026 (Indie Developer track, th
 with or endorsed by Meta.
 
 > **Status (2026-11-04): a working prototype, release candidate for the demo.**
-> - **Automated checks:** 418 backend tests pass (mocked models; 1 live test excluded by default), plus 39 frontend
+> - **Automated checks:** 439 backend tests pass (mocked models; 1 live test excluded by default), plus 43 frontend
 >   tests, TypeScript, lint and the production build.
 > - **Live use so far:** live Meta calls have been smoke-tested; the new Home Entertainment inspection has **not**
 >   yet run on real hardware with live models.

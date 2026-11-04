@@ -25,11 +25,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Settings
-from .evidence import Gap, NextViewRequest, ObservationRecord, RequirementAssessment
-from .grounding import GroundingRun, link_devices, link_ports, run_sam
+from .evidence import (DeclarationKind, Gap, NextViewRequest, ObservationRecord, OperatorDeclaration,
+                       RequirementAssessment, ViewCheck)
+from .grounding import (FALLBACK_CABLE_CONCEPT, GroundingRun, fallback_targets, link_devices, link_ports,
+                        link_ports_fallback, run_sam)
 from .images import NormalizedImage
 from .meta_client import BudgetExhausted, MetaAPIError, MetaClient
 from .muse import ModelOutputError, extract_observations, plan_next_view, summarize_extraction
@@ -44,7 +46,16 @@ StopReason = Literal["all_requirements_resolved", "no_visually_resolvable_gaps",
                      "contradiction_requires_review"]
 # Gaps whose target is a specific device's port row (the photo must show that device's ports to address them).
 _PORT_GAPS = ("LABEL_ILLEGIBLE", "PORT_NOT_FOUND", "INSERTION_UNCLEAR", "GROUNDING_MISSING")
+# Gaps whose request is about one device's ports, where showing the device (from any side) is already a genuine
+# attempt: the person went to the device, so a view without its ports counts as an attempt that failed.
+_DEVICE_PORT_GAPS = ("PORTS_NOT_VISIBLE", "DEVICE_UNCONFIRMED")
+_PLUG_GAPS = ("INSERTION_UNCLEAR", "GROUNDING_MISSING")
 _BUDGET_STOPS = ("observation_budget_exhausted", "model_call_budget_exhausted")
+# Targeted photos allowed per gap code where the general Budget.max_attempts_per_gap is too many. GROUNDING_MISSING:
+# the plug was already seen clearly by Muse; when SAM still does not corroborate it after one targeted view, further
+# camera angles were not observed to help (recorded live run: three photos of one plug, SAM found nothing in any), so
+# the photos go to the other open gaps instead. The plug stays on the record as observed but not corroborated.
+_ATTEMPT_CEILING = {"GROUNDING_MISSING": 1}
 
 
 class AgentState(BaseModel):
@@ -73,6 +84,8 @@ class AgentState(BaseModel):
     model_calls_started: int
     model_call_limit: int
     trace_event_count: int
+    # Statements by the person inspecting (M3.7). Default empty: snapshots from earlier versions load unchanged.
+    declarations: list[OperatorDeclaration] = Field(default_factory=list)
 
 
 @dataclass
@@ -83,6 +96,8 @@ class StepResult:
     next_view: NextViewRequest | None
     stop_reason: StopReason | None
     notes: list[str] = field(default_factory=list)
+    # Whether this photo showed the view the pending camera request asked for (None: no request was pending).
+    view_check: ViewCheck | None = None
 
 
 class InspectionAgent:
@@ -108,6 +123,7 @@ class InspectionAgent:
         self.stop_reason: StopReason | None = None
         self.epoch = 0
         self.history: list[dict[str, Any]] = []  # one entry per submitted photo or inspection event
+        self.declarations: list[OperatorDeclaration] = []  # all epochs; the policy sees the current one only
         # Photos whose SAM masks were not restored (see restore()); their overlays must come from storage.
         self.masks_unavailable: set[int] = set()
         self._busy = False  # a step is in progress; state is mid-update and must not be read or advanced
@@ -131,7 +147,8 @@ class InspectionAgent:
             assessments=[a.model_copy(deep=True) for a in self.assessments],
             stop_reason=self.stop_reason, epoch=self.epoch, history=copy.deepcopy(self.history),
             model_calls_started=self.client.calls_started, model_call_limit=self.client.call_limit,
-            trace_event_count=len(self.trace.events))
+            trace_event_count=len(self.trace.events),
+            declarations=[d.model_copy(deep=True) for d in self.declarations])
 
     @classmethod
     def restore(cls, state: AgentState, client: MetaClient, settings: Settings,
@@ -172,6 +189,7 @@ class InspectionAgent:
         agent.stop_reason = state.stop_reason
         agent.epoch = state.epoch
         agent.history = copy.deepcopy(state.history)
+        agent.declarations = [d.model_copy(deep=True) for d in state.declarations]
         client.calls_started = state.model_calls_started
         known = {o.image_id for o in agent.observations}
         for img in images:
@@ -188,7 +206,7 @@ class InspectionAgent:
         assessment was made; the caller must surface this rather than silently replace a verdict.
         """
         obs = self.current_observations
-        fresh = {r.id: assess_requirement(self.spec, r, obs, self.require_grounding)
+        fresh = {r.id: assess_requirement(self.spec, r, obs, self.require_grounding, self.current_declarations)
                  for r in self.spec.requirements}
         stored = {a.requirement_id: a for a in self.assessments}
         if not stored:  # nothing assessed yet (no photo, no event)
@@ -201,9 +219,14 @@ class InspectionAgent:
         """Observations of the current installation configuration: the only ones the policy may use."""
         return [o for o in self.observations if o.epoch == self.epoch]
 
+    @property
+    def current_declarations(self) -> list[OperatorDeclaration]:
+        """Operator declarations about the current configuration (an installation change retires earlier ones)."""
+        return [d for d in self.declarations if d.epoch == self.epoch]
+
     def _assess(self) -> list[RequirementAssessment]:
         obs = self.current_observations
-        self.assessments = [assess_requirement(self.spec, r, obs, self.require_grounding)
+        self.assessments = [assess_requirement(self.spec, r, obs, self.require_grounding, self.current_declarations)
                             for r in self.spec.requirements]
         for a in self.assessments:
             self.trace.add("policy", "assess", detail={"requirement": a.requirement_id, "status": a.status,
@@ -224,15 +247,17 @@ class InspectionAgent:
             "stop_reason": self.stop_reason, "notes": list(notes), **extra})
 
     def _step(self, seq: int, rec_or_img_id: str, source_name: str, next_view: NextViewRequest | None,
-              notes: list[str], **extra: Any) -> StepResult:
+              notes: list[str], view_check: ViewCheck | None = None, **extra: Any) -> StepResult:
+        if view_check is not None:
+            extra["view_check"] = view_check.model_dump()
         self._record(seq, rec_or_img_id, source_name, next_view, notes, **extra)
-        return StepResult(seq, rec_or_img_id, self.assessments, next_view, self.stop_reason, notes)
+        return StepResult(seq, rec_or_img_id, self.assessments, next_view, self.stop_reason, notes, view_check)
 
     def _stop(self, reason: StopReason, seq: int, image_id: str, source_name: str,
-              notes: list[str]) -> StepResult:
+              notes: list[str], view_check: ViewCheck | None = None) -> StepResult:
         self.stop_reason = reason
         self.trace.add("stop", reason)
-        return self._step(seq, image_id, source_name, None, notes)
+        return self._step(seq, image_id, source_name, None, notes, view_check)
 
     # ------------------------------------------------------------------ inspection events
 
@@ -253,6 +278,93 @@ class InspectionAgent:
         self._assess()
         self.history.append({"event": "installation_changed", "epoch": self.epoch, "reason": reason,
                              "superseded_photos": [o.seq for o in self.observations if o.epoch < self.epoch]})
+
+    async def declare(self, kind: DeclarationKind, *, seq: int | None = None, device_id: str | None = None,
+                      requirement_id: str | None = None, now: float | None = None) -> OperatorDeclaration:
+        """Record a statement by the person inspecting and re-assess (no model calls, no photo used).
+
+        Refused (ValueError, nothing recorded) unless the spec permits that kind of declaration and the evidence it
+        refers to exists: device_identity needs a current-configuration photo in which exactly one device was claimed
+        as that spec device, with UNCERTAIN identification (never a device Muse matched to another spec device);
+        cable_identity needs a requirement whose spec allows it and whose two endpoints photos already support. The
+        policy applies further limits (connector families, no contrary trace). If the current camera request no
+        longer applies, the next one comes from the fixed templates, so declaring never costs a model call.
+        """
+        self._check_idle()
+        self._busy = True
+        try:
+            return await self._declare(kind, seq, device_id, requirement_id, now)
+        finally:
+            self._busy = False
+
+    async def _declare(self, kind: DeclarationKind, seq: int | None, device_id: str | None,
+                       requirement_id: str | None, now: float | None) -> OperatorDeclaration:
+        if kind == "device_identity":
+            if not self.spec.allow_device_identity_declarations:
+                raise ValueError("this specification does not permit device-identity declarations")
+            if seq is None or device_id is None or device_id not in {d.id for d in self.spec.devices}:
+                raise ValueError("a device-identity declaration needs a photo number and a spec device")
+            o = next((o for o in self.current_observations if o.seq == seq), None)
+            if o is None or not o.usable:
+                raise ValueError(f"photo {seq} is not a usable photo of the current configuration")
+            claims = [d for d in o.extraction.devices if d.spec_device_id == device_id]  # type: ignore[union-attr]
+            name = self.spec.device(device_id).name
+            if len(claims) != 1:
+                raise ValueError(f"in photo {seq} {'no device' if not claims else 'more than one device'} was "
+                                 f"matched to the {name}, so a declaration cannot say which one it is")
+            if claims[0].identification_certainty == "clear":
+                raise ValueError(f"the {name} was already identified with certainty in photo {seq}")
+            statement = f"Photo {seq} shows the {name}."
+            existing = next((d for d in self.current_declarations
+                             if d.kind == kind and d.seq == seq and d.device_id == device_id), None)
+        else:
+            req = next((r for r in self.spec.requirements if r.id == requirement_id), None)
+            if req is None or req.cable_identity != "trace_or_operator_declaration":
+                raise ValueError("this requirement's specification does not permit a cable-identity declaration")
+            a = next((a for a in self.assessments if a.requirement_id == req.id), None)
+            if a is None or not all(ep.state == "established" for ep in a.endpoints):
+                raise ValueError("both ends of the connection must first be supported by photos")
+            ends = " and at the ".join(f"{self.spec.device(e.device_id).name} {e.port_label}" for e in req.endpoints)
+            statement = f"The {req.cable_desc()} at the {ends} is one and the same cable."
+            existing = next((d for d in self.current_declarations
+                             if d.kind == kind and d.requirement_id == req.id), None)
+        if existing is not None:
+            return existing  # idempotent: the same statement is recorded once
+        decl = OperatorDeclaration(id=f"od{len(self.declarations) + 1}", kind=kind, epoch=self.epoch,
+                                   statement=statement, seq=seq if kind == "device_identity" else None,
+                                   device_id=device_id if kind == "device_identity" else None,
+                                   requirement_id=requirement_id if kind == "cable_identity" else None,
+                                   created_at=time.time() if now is None else now)
+        self.declarations.append(decl)
+        self.trace.add("agent_step", "operator_declaration", detail=decl.model_dump())
+        self._assess()
+        if not self.done:
+            if all(a.status != "INSUFFICIENT_EVIDENCE" for a in self.assessments):
+                self.stop_reason = "all_requirements_resolved"
+                self.trace.add("stop", self.stop_reason)
+            else:
+                await self._replan_from_templates()
+        return decl
+
+    async def _replan_from_templates(self) -> None:
+        """After a declaration: if the current camera request targets a gap that is now closed, issue the next one
+        from the fixed templates (no model call). Leaves a still-valid request untouched."""
+        open_keys = {g.key for a in self.assessments for g in a.gaps}
+        current = self.requests[-1] if self.requests else None
+        if current is None or current.gap_key in open_keys:
+            return
+        blocked = {r["requirement_id"] for r in self.review_items()}
+        gap = select_gap([a for a in self.assessments if a.requirement_id not in blocked], set(self.exhausted),
+                         self._devices_in_latest_view())
+        if gap is None:
+            self.stop_reason = "contradiction_requires_review" if blocked else "no_visually_resolvable_gaps"
+            self.trace.add("stop", self.stop_reason)
+            return
+        latest = self.current_observations[-1].image_id if self.current_observations else ""
+        req, _plan = await self._plan(gap, None, latest)
+        self.gap_attempts[gap.key] = self.gap_attempts.get(gap.key, 0) + 1
+        self.requests.append(req)
+        self.trace.add("plan", "next_view", image_id=latest or None, detail=req.model_dump())
 
     # ------------------------------------------------------------------ main entry points
 
@@ -362,14 +474,26 @@ class InspectionAgent:
             dev_concepts = {d.id: d.sam_concept for d in self.spec.devices}
             seen_ids = {d.spec_device_id for d in ext.devices if d.spec_device_id}
             cable_concepts = sorted({r.cable_concept() for r in self.spec.requirements})
-            concepts = list(dict.fromkeys(cable_concepts + sorted({dev_concepts[i] for i in seen_ids})))
-            if len(concepts) > self.budget.max_sam_calls_per_image:
-                concepts = self._prioritize_concepts(ext, cable_concepts, concepts)
+            # A cable concept no occupied port in this photo could use is never sent (grounding is only read at
+            # occupied ports whose connector family is not clearly another one), so it cannot add evidence.
+            concepts = self._prioritize_concepts(
+                ext, cable_concepts, list(dict.fromkeys(cable_concepts + sorted({dev_concepts[i] for i in seen_ids}))))
             concepts = concepts[: self.budget.max_sam_calls_per_image]
             run = await run_sam(self.client, image, concepts)
-            rec.sam = run.groundings
             rec.device_links = link_devices(ext, run, dev_concepts, image.width, image.height)
             rec.port_links = link_ports(ext, run, cable_concepts, image.width, image.height)
+            # Generic fallback, at most one extra call and only within the per-photo SAM cap (see grounding.py).
+            by_connector = {r.connector: r.cable_concept() for r in self.spec.requirements}
+            targets = fallback_targets(ext, run, by_connector)
+            if (targets and FALLBACK_CABLE_CONCEPT not in concepts
+                    and len(concepts) < self.budget.max_sam_calls_per_image):
+                extra = await run_sam(self.client, image, [FALLBACK_CABLE_CONCEPT])
+                run.groundings.extend(extra.groundings)
+                run.masks.update(extra.masks)
+                rec.port_links.update(link_ports_fallback(ext, run, targets, image.width, image.height))
+                self.trace.add("agent_step", "sam_fallback", image_id=image.image_id,
+                               detail={"concept": FALLBACK_CABLE_CONCEPT, "ports": targets})
+            rec.sam = run.groundings
             for g in run.groundings:
                 if g.status == "error":
                     notes.append(f"SAM '{g.concept}' failed: {g.error}")
@@ -382,37 +506,51 @@ class InspectionAgent:
         seq, image_id, name = rec.seq, rec.image_id, rec.source_name
         if run is not None:
             self.grounding_runs[seq] = run
+        # VIEW RELEVANCE (A), judged against the gap as it stood when the request was issued, i.e. before this
+        # photo is assessed. Independent of evidence acceptance (B) and of the verdict (C), which the policy decides.
+        pending = self.requests[-1] if self.requests and rec.responding_to == self.requests[-1].id else None
+        check = self._view_check(rec, pending) if pending is not None else None
+        if pending is not None and check is not None:
+            notes.append(self._view_note(seq, pending, check))
+            self.trace.add("agent_step", "view_check", image_id=image_id, detail=check.model_dump())
         self.observations.append(rec)
 
         # ASSESS (whole current-configuration evidence set, order-independent)
         self._assess()
         if all(a.status != "INSUFFICIENT_EVIDENCE" for a in self.assessments):
-            return self._stop("all_requirements_resolved", seq, image_id, name, notes)
+            return self._stop("all_requirements_resolved", seq, image_id, name, notes, check)
         if budget_hit:
-            return self._stop("model_call_budget_exhausted", seq, image_id, name, notes)
+            return self._stop("model_call_budget_exhausted", seq, image_id, name, notes, check)
 
         # Attempt accounting. An attempt is counted when a request is issued; if the photo answering it did not
-        # show what the request targeted (unusable, wrong device, or the device without its ports), that attempt is
-        # refunded and the same request is re-issued below without a new planner call. The photo budget and the
-        # model-call budget still bound everything; an off-target photo never earns more than its own analysis.
+        # show what the request targeted (unusable, wrong device, or the device without its ports for a port-level
+        # gap), that attempt is refunded and the same request is re-issued below without a new planner call. A
+        # photo that DID show the requested view counts, whether or not the policy accepted anything from it: an
+        # unverified connection is not a failed camera instruction. The photo budget and the model-call budget
+        # still bound everything; an off-target photo never earns more than its own analysis.
         open_keys = {g.key for a in self.assessments for g in a.gaps}
-        pending = self.requests[-1] if self.requests and rec.responding_to == self.requests[-1].id else None
         reissue: NextViewRequest | None = None
-        if (pending is not None and pending.gap_key in open_keys and pending.gap_key not in self.exhausted
-                and self.gap_attempts.get(pending.gap_key, 0) > 0 and not self._addresses(rec, pending)):
+        if (pending is not None and check is not None and pending.gap_key in open_keys
+                and pending.gap_key not in self.exhausted
+                and self.gap_attempts.get(pending.gap_key, 0) > 0 and not check.counted_as_attempt):
             self.gap_attempts[pending.gap_key] -= 1
             reissue = pending
-            notes.append(f"Photo {seq} did not show what request {pending.id} asked for ({pending.target_region}); "
-                         "no attempt was counted and that guidance still applies.")
+            notes.append(f"Request {pending.id} still applies: no attempt was counted for it.")
             self.trace.add("agent_step", "off_target_photo", image_id=image_id,
                            detail={"request": pending.id, "gap": pending.gap_key})
         for k, n in self.gap_attempts.items():
-            if k in open_keys and n >= self.budget.max_attempts_per_gap and k not in self.exhausted:
-                self.exhausted[k] = f"still unresolved after {n} targeted views"
+            code = k.split(":")[1] if k.count(":") >= 2 else ""
+            if (k in open_keys and n >= _ATTEMPT_CEILING.get(code, self.budget.max_attempts_per_gap)
+                    and k not in self.exhausted):
+                self.exhausted[k] = (
+                    f"SAM still did not corroborate the plug Muse reported after {n} targeted "
+                    f"{'view' if n == 1 else 'views'}; another camera angle is unlikely to help. The plug stays on "
+                    "the record as observed by Muse but not corroborated." if code == "GROUNDING_MISSING"
+                    else f"still unresolved after {n} targeted views")
                 notes.append(f"Giving up on gap {k}: {self.exhausted[k]}")
 
         if seq >= self.max_observations:
-            return self._stop("observation_budget_exhausted", seq, image_id, name, notes)
+            return self._stop("observation_budget_exhausted", seq, image_id, name, notes, check)
 
         # CONTRADICTIONS: never answered with a camera request. A requirement blocked by one needs installation
         # review; the others keep being pursued.
@@ -426,11 +564,11 @@ class InspectionAgent:
                              set(self.exhausted), self._devices_in_latest_view())
             if gap is None:
                 return self._stop("contradiction_requires_review" if blocked else "no_visually_resolvable_gaps",
-                                  seq, image_id, name, notes)
+                                  seq, image_id, name, notes, check)
             if reissue is not None and gap.key == reissue.gap_key:
                 self.gap_attempts[gap.key] = self.gap_attempts.get(gap.key, 0) + 1
                 self.trace.add("plan", "next_view_reissued", image_id=image_id, detail={"request": reissue.id})
-                return self._step(seq, image_id, name, reissue, notes)
+                return self._step(seq, image_id, name, reissue, notes, check)
             # plan_next_view falls back to a deterministic plan on any API failure, incl. budget.
             plan_img = image if (rec.usable and image is not None) else self._latest_usable_image()
             req, plan = await self._plan(gap, plan_img if self.plan_with_muse else None, image_id)
@@ -441,13 +579,13 @@ class InspectionAgent:
             self.gap_attempts[gap.key] = self.gap_attempts.get(gap.key, 0) + 1
             self.requests.append(req)
             self.trace.add("plan", "next_view", image_id=image_id, detail=req.model_dump())
-            return self._step(seq, image_id, name, req, notes)
+            return self._step(seq, image_id, name, req, notes, check)
 
     def _prioritize_concepts(self, ext: ObservationExtraction, cable_concepts: list[str],
                              concepts: list[str]) -> list[str]:
-        """Only when the per-photo SAM cap would drop concepts: skip a cable concept that no port in this photo
-        could use. Grounding is only ever read at OCCUPIED ports whose connector family is not clearly another one,
-        so such a concept cannot add evidence; the freed call goes to the next concept (a device mask)."""
+        """Skip a cable concept that no port in this photo could use. Grounding is only ever read at OCCUPIED ports
+        whose connector family is not clearly another one, so such a concept cannot add evidence; the call is
+        saved (or, at the per-photo cap, goes to the next concept, a device mask)."""
         useful = set()
         for r in self.spec.requirements:
             if any(p.occupancy == "cable_inserted" and connector_match(p.connector_type, r.connector) != "mismatch"
@@ -455,34 +593,79 @@ class InspectionAgent:
                 useful.add(r.cable_concept())
         return [c for c in concepts if c not in cable_concepts or c in useful]
 
-    def _addresses(self, rec: ObservationRecord, req: NextViewRequest) -> bool:
-        """Did this photo show what the request targeted? Uses only the photo's own (validated) observation claims:
-        the target spec device identified unambiguously, with its ports reported for port-level gaps. Whether it
-        actually closed the gap is the policy's business; this only decides if it counts as an attempt."""
-        if not rec.usable:
-            return False
-        ext = rec.extraction
-        gap = next((g for a in self.assessments for g in a.gaps if g.key == req.gap_key), None)
-        if gap is None:
-            return True
-        amb = ambiguous_device_ids(ext)  # type: ignore[arg-type]
+    def _view_check(self, rec: ObservationRecord, req: NextViewRequest) -> ViewCheck:
+        """A. VIEW RELEVANCE: did this photo show what `req` asked for?
 
-        def shown(device_id: str, need_ports: bool, any_certainty: bool = False) -> bool:
-            for d in ext.devices:  # type: ignore[union-attr]
-                if d.spec_device_id != device_id or device_id in amb:
-                    continue
-                if not any_certainty and d.identification_certainty != "clear":
-                    continue
-                if not need_ports or d.ports_visible or any(p.device_ref == d.ref for p in ext.ports):  # type: ignore[union-attr]
-                    return True
-            return False
+        Uses only structured data: the request's requirement, gap code and endpoint, the gap's context as it stood
+        when the request was issued, and the photo's validated observation claims (never free-text matching). A
+        device claimed with UNCERTAIN identification still counts as shown here (it was photographed); whether its
+        observations are evidence (B) and what the verdict is (C) are decided by the policy alone.
+        """
+        r = self.spec.requirement(req.requirement_id)
+        idx = _endpoint_index(req.gap_key)
+        device_ids = list(dict.fromkeys(e.device_id for e in (r.endpoints if idx is None else [r.endpoints[idx]])))
+        code = req.gap_code
+        prior = next((g for a in self.assessments for g in a.gaps if g.key == req.gap_key), None)
+        need_ports = code in _PORT_GAPS or code in _DEVICE_PORT_GAPS
+        need_plug = code in _PLUG_GAPS or (code == "LABEL_ILLEGIBLE" and prior is not None
+                                           and bool(prior.context.get("label_hidden_by_plug")))
+        ext = rec.extraction if rec.usable else None
+        amb = ambiguous_device_ids(ext) if ext is not None else set()
+        shown: list[str] = []
+        missing: list[str] = []
+        core = True
+        confirmed: list[bool] = []
+        unconfirmed: list[str] = []
+        for dev_id in device_ids:
+            name = self.spec.device(dev_id).name
+            dev_part, ports_part = f"the {name}", f"the {name}'s connection ports"
+            plug_part, id_part = f"the {name} port holding the {r.connector} plug", f"features confirming it is the {name}"
+            parts = [dev_part]
+            if need_ports:
+                parts.append(ports_part)
+            if need_plug:
+                parts.append(plug_part)
+            if code == "DEVICE_UNCONFIRMED":
+                parts.append(id_part)
+            d = None
+            if ext is not None and dev_id not in amb:
+                d = next((x for x in ext.devices if x.spec_device_id == dev_id), None)
+            got = {part: False for part in parts}
+            if d is not None and ext is not None:
+                ports = [p for p in ext.ports if p.device_ref == d.ref]
+                clear = d.identification_certainty == "clear"
+                confirmed.append(clear)
+                if not clear:
+                    unconfirmed.append(name)
+                got[dev_part] = True
+                got[ports_part] = d.ports_visible or bool(ports)
+                got[plug_part] = any(p.occupancy == "cable_inserted"
+                                     and connector_match(p.connector_type, r.connector) != "mismatch" for p in ports)
+                got[id_part] = clear
+            for part in parts:
+                (shown if got[part] else missing).append(part)
+            # What makes the photo a genuine attempt at the request (the earlier accounting rule, minus requiring a
+            # certain identification): the device, plus its ports for port-level gaps.
+            core = core and got[dev_part] and (code not in _PORT_GAPS or got[ports_part])
+        status = "captured" if not missing else ("not_captured" if not shown else "partial")
+        return ViewCheck(request_id=req.id, gap_key=req.gap_key, requirement_id=req.requirement_id, status=status,
+                         shown=shown, missing=missing, identity_confirmed=all(confirmed) if confirmed else None,
+                         unconfirmed_devices=unconfirmed, counted_as_attempt=core)
 
-        if gap.code == "CABLE_CONTINUITY":
-            return all(shown(e.device_id, False) for e in self.spec.requirement(gap.requirement_id).endpoints)
-        device_id = gap.context.get("device_id")
-        if not device_id:
-            return True
-        return shown(device_id, gap.code in _PORT_GAPS, any_certainty=gap.code == "DEVICE_NOT_SEEN")
+    @staticmethod
+    def _view_note(seq: int, req: NextViewRequest, c: ViewCheck) -> str:
+        if c.status == "captured":
+            out = f"Photo {seq} showed the view requested in {req.id}: {', '.join(c.shown)}."
+        elif c.status == "partial":
+            out = (f"Photo {seq} partly showed the view requested in {req.id}: it showed {', '.join(c.shown)}, "
+                   f"but not {', '.join(c.missing)}.")
+        else:
+            out = (f"Photo {seq} did not show the view requested in {req.id} ({req.target_region}): "
+                   f"{', '.join(c.missing)} not seen.")
+        if c.unconfirmed_devices and req.gap_code != "DEVICE_UNCONFIRMED":
+            out += (f" The {' and the '.join(c.unconfirmed_devices)} was not identified with certainty in this "
+                    "photo, so what the photo shows of it is not used as evidence.")
+        return out
 
     def review_items(self) -> list[dict[str, Any]]:
         """Open requirements blocked by a contradiction, with the conflicting evidence and its photos.
@@ -537,12 +720,15 @@ class InspectionAgent:
         return out
 
     def _devices_in_latest_view(self) -> set[str]:
-        """Spec devices clearly shown in the latest photo that showed any. Photos showing none of them (unusable,
-        or only unrelated equipment) do not move the guidance away from where the user last was."""
+        """Spec devices shown in the latest photo that showed any: where the person is now. Used only to order
+        gaps, never as evidence, so an uncertain identification counts here (an ambiguous one does not). Photos
+        showing none of them (unusable, or only unrelated equipment) do not move the guidance away from where the
+        user last was."""
         for o in reversed(self.current_observations):
             if o.usable:
+                amb = ambiguous_device_ids(o.extraction)  # type: ignore[arg-type]
                 seen = {d.spec_device_id for d in o.extraction.devices  # type: ignore[union-attr]
-                        if d.spec_device_id and d.identification_certainty == "clear"}
+                        if d.spec_device_id and d.spec_device_id not in amb}
                 if seen:
                     return seen
         return set()
@@ -574,3 +760,9 @@ class InspectionAgent:
         return await plan_next_view(self.client, self.spec, gap, image, recent, f"nv{len(self.requests) + 1}",
                                     evidence_state=self.evidence_state(), previous_requests=previous,
                                     latest_image_id=latest_image_id, unread_labels=self._unread_labels(gap))
+
+
+def _endpoint_index(gap_key: str | None) -> int | None:
+    """'R1:PORTS_NOT_VISIBLE:0' -> 0; requirement-level gaps ('R1:CABLE_CONTINUITY:None') -> None."""
+    tail = (gap_key or "").rsplit(":", 1)[-1]
+    return int(tail) if tail.isdigit() else None

@@ -1,6 +1,6 @@
 import { Camera, ChevronRight, CircleCheck, CircleDashed, Crosshair, Flag, RefreshCcw, TriangleAlert } from 'lucide-react'
-import type { InspectionState, StepResponse } from '../api/types'
-import { cn } from '../lib/utils'
+import type { InspectionState, StepResponse, ViewCheck } from '../api/types'
+import { cn, VIEW_TEXT } from '../lib/utils'
 import { CardTitle } from './ui/card'
 
 const WORD: Record<string, string> = { VERIFIED: 'verified', VIOLATED: 'violated', INSUFFICIENT_EVIDENCE: 'needs evidence' }
@@ -15,7 +15,20 @@ export function LastPhotoCard({ step, state }: { step: StepResponse; state: Insp
   if (step.duplicate_of !== null) rows.push({ ok: null, text: `Identical to photo ${step.duplicate_of}: not analysed again` })
   else if (photo && !photo.usable) rows.push({ ok: false, text: 'Analysed, but the photo was not usable as evidence' })
   else rows.push({ ok: true, text: 'Received and analysed by the models' })
+  // Three separate questions, each answered by the server: did the photo show the requested view (guidance), what
+  // did the policy accept from it (evidence), and is the connection established (verdict).
+  const vc = step.duplicate_of === null ? step.view_check : null
+  if (vc) rows.push({ ok: vc.status === 'captured' ? true : vc.status === 'partial' ? null : false, text: VIEW_TEXT[vc.status] })
+  if (vc?.identity_confirmed === false) rows.push({ ok: false, text: `${vc.unconfirmed_devices.join(', ')} not identified with certainty: not used as evidence` })
   rows.push({ ok: accepted > 0 ? true : null, text: `${accepted} evidence ${accepted === 1 ? 'item' : 'items'} accepted by the policy from this photo` })
+  const museOnly = step.assessments.reduce((k, a) => k + a.endpoints.reduce((j, ep) => j
+    + (ep.candidates ?? []).filter((x) => x.seq === step.seq).length, 0), 0)
+  if (museOnly > 0) rows.push({ ok: false, text: `${museOnly} ${museOnly === 1 ? 'plug' : 'plugs'} seen by Muse only: SAM did not corroborate, not counted` })
+  const target = vc ? step.assessments.find((a) => a.requirement_id === vc.requirement_id) : undefined
+  if (target?.status === 'INSUFFICIENT_EVIDENCE') {
+    rows.push({ ok: null, text: `${target.requirement_id}: connection still needs evidence` })
+    if (target.gaps.some((g) => g.code === 'LABEL_ILLEGIBLE')) rows.push({ ok: null, text: 'Port identity could not be established' })
+  }
   if (open > 0) rows.push({ ok: null, text: `${open} ${open === 1 ? 'fact' : 'facts'} still to establish` })
   rows.push(step.status === 'stopped'
     ? { ok: null, text: 'No further photo requested: the inspection has stopped' }
@@ -68,6 +81,7 @@ export function Timeline({ history }: { history: Entry[] }) {
             )
           }
           const reqs = (h.requirements as { id: string; status: string }[] | undefined) ?? []
+          const vc = h.view_check as ViewCheck | undefined
           const stopped = typeof h.stop_reason === 'string' ? h.stop_reason : null
           return (
             <li key={i} className="relative">
@@ -78,6 +92,7 @@ export function Timeline({ history }: { history: Entry[] }) {
                 {`Photo ${String(h.seq)}`}
                 {h.source_name ? <span className="font-normal text-fg-subtle"> · {String(h.source_name)}</span> : null}
               </p>
+              {vc && <p className="mt-0.5 text-[13px] text-fg-muted">{`${VIEW_TEXT[vc.status]} (${vc.request_id})`}</p>}
               {reqs.length > 0 && (
                 <p className="mt-0.5 flex flex-wrap gap-x-3 text-[13px]">
                   {reqs.map((r) => (

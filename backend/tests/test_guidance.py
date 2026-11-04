@@ -336,8 +336,13 @@ def test_off_target_photos_over_http_keep_guidance_and_accounting(tmp_path):
         async with server(tmp_path, fm) as (c, store, _a):
             r = await cap(c, iid, "kitchen.jpg", responding_to=g1)
             assert r.json()["next_view"]["id"] == g1 and any("no attempt" in n for n in r.json()["notes"])
+            vc = r.json()["view_check"]
+            assert vc["request_id"] == g1 and vc["status"] == "not_captured" and vc["counted_as_attempt"] is False
             r = await cap(c, iid, "rear.jpg", responding_to=g1)  # still the current guidance: not stale
             assert r.json()["assessments"][0]["status"] == "VERIFIED"
+            assert r.json()["view_check"]["status"] == "captured"
+            hist = (await c.get(f"/api/inspections/{iid}")).json()["history"]
+            assert [h.get("view_check", {}).get("status") for h in hist] == [None, "not_captured", "captured"]
             assert chat_calls(fm, PLAN) == 1
             check_invariants(store, iid, sent=len(fm.requests))
 

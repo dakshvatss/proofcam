@@ -185,7 +185,10 @@ def create_app(settings: Settings, store: Store, transport: httpx.AsyncBaseTrans
 
     @app.post("/api/inspections/{inspection_id}/events", response_model=InspectionState)
     async def event(inspection_id: str, body: EventRequest) -> InspectionState:
-        return await service.declare_installation_changed(inspection_id, body.reason)
+        if body.type == "installation_changed":
+            return await service.declare_installation_changed(inspection_id, body.reason)  # type: ignore[arg-type]
+        return await service.record_declaration(inspection_id, body.type, seq=body.seq, device_id=body.device_id,
+                                                 requirement_id=body.requirement_id)
 
     @app.get("/api/inspections/{inspection_id}/report", response_model=None)
     async def report(inspection_id: str,
@@ -211,6 +214,13 @@ def create_app(settings: Settings, store: Store, transport: httpx.AsyncBaseTrans
 DEFAULT_GLOBAL_CALL_LIMIT = 50
 
 
+def inspection_call_limit_from_env() -> int | None:
+    """PROOFCAM_INSPECTION_CALL_LIMIT: model calls each NEW inspection may use (unset = 40). Existing inspections keep
+    the limit they were created with."""
+    raw = os.environ.get("PROOFCAM_INSPECTION_CALL_LIMIT", "").strip()
+    return int(raw) if raw else None
+
+
 def global_call_limit_from_env() -> int | None:
     """PROOFCAM_GLOBAL_CALL_LIMIT: integer cap on model calls across all inspections; "none" disables it."""
     raw = os.environ.get("PROOFCAM_GLOBAL_CALL_LIMIT", "").strip().lower()
@@ -226,7 +236,10 @@ def app_from_env() -> FastAPI:
     settings = Settings.from_env()  # also loads .env
     code = os.environ.get("PROOFCAM_ACCESS_CODE", "").strip() or None
     limit = global_call_limit_from_env()
+    per_inspection = inspection_call_limit_from_env()
     if code is None:
         log.warning("PROOFCAM_ACCESS_CODE not set: serving requests from this computer only")
+    log.warning("model-call limits: %s across all inspections, %s per new inspection",
+                limit if limit is not None else "no cap", per_inspection or settings.budget.max_model_calls)
     return create_app(settings, Store(database_path()), owns_store=True, access_code=code, local_only=True,
-                      config=ServiceConfig(global_call_limit=limit))
+                      config=ServiceConfig(global_call_limit=limit, inspection_call_limit=per_inspection))

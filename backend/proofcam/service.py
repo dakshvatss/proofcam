@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import logging
 import re
 import time
@@ -40,7 +41,7 @@ from pydantic import ValidationError
 from .agent import InspectionAgent, StepResult
 from .api_models import (InspectionState, PhotoInfo, SpecEndpointSummary, SpecRequirementSummary, SpecSummary,
                          StepResponse, Usage)
-from .config import REPO_ROOT, Settings
+from .config import REPO_ROOT, Budget, Settings
 from .images import ImageLoadError, NormalizedImage, normalize_image_bytes
 from .meta_client import BudgetExhausted, MetaClient
 from .overlay import render_overlay_jpeg
@@ -76,10 +77,20 @@ class ServiceConfig:
     # the per-call reservation enforces the cap as a hard backstop.
     global_call_limit: int | None = None
     capture_call_reserve: int = 8
+    # Model calls ONE new inspection may use (None = Budget.max_model_calls, 40). Fixed at creation and stored with the
+    # inspection, so changing it never alters inspections that already exist. Independent of the photo limit (spec
+    # max_photos) and of the global cap above; whichever is reached first stops the inspection.
+    inspection_call_limit: int | None = None
+    # Reported to the app (Usage.photo_min_calls), which disables capture below it: one Muse extraction and one SAM
+    # call are the least that can turn a photo into grounded evidence. The server's own backstop is unchanged: a
+    # capture with no calls left stops the inspection as model_call_budget_exhausted without sending anything.
+    photo_min_calls: int = 2
 
     def __post_init__(self) -> None:
         if self.lease_stale_after_s < 3 * self.lease_heartbeat_s:
             raise ValueError("lease_stale_after_s must be at least 3x lease_heartbeat_s")
+        if self.inspection_call_limit is not None and self.inspection_call_limit < self.photo_min_calls:
+            raise ValueError(f"inspection_call_limit must be at least {self.photo_min_calls}")
 
 
 class ServiceError(Exception):
@@ -182,12 +193,17 @@ class InspectionService:
 
     # ------------------------------------------------------------------ helpers
 
+    def _settings_for(self, budget: dict[str, int]) -> Settings:
+        """Server settings with an inspection's own stored budget (set when it was created)."""
+        return dataclasses.replace(self.settings, budget=Budget(**budget))
+
     @contextlib.asynccontextmanager
     async def _read_only_agent(self, bundle: RestoreBundle) -> AsyncIterator[InspectionAgent]:
-        client = MetaClient(self.settings, Trace.from_events(bundle.trace_events), transport=_READ_ONLY_TRANSPORT,
+        settings = self._settings_for(bundle.state.budget)
+        client = MetaClient(settings, Trace.from_events(bundle.trace_events), transport=_READ_ONLY_TRANSPORT,
                             source=self.config.model_source)
         try:
-            yield InspectionAgent.restore(bundle.state, client, self.settings, bundle.images)
+            yield InspectionAgent.restore(bundle.state, client, settings, bundle.images)
         finally:
             await client.aclose()
 
@@ -200,10 +216,14 @@ class InspectionService:
             log.error("corrupt inspection %s: %s", inspection_id, e)
             raise ServiceError(500, "storage_corrupt", "stored inspection data is unreadable") from e
 
-    def _usage(self, inspection_id: str, counter: int, limit: int, trace: Trace) -> Usage:
+    def _usage(self, inspection_id: str, counter: int, limit: int, trace: Trace,
+               agent: InspectionAgent | None = None) -> Usage:
         by_status = Counter(c.status for c in self.store.list_model_calls(inspection_id))
         return Usage(model_calls=counter, model_call_limit=limit, remaining=max(0, limit - counter),
-                     calls_by_status=dict(by_status), estimated_cost_usd=trace.summary()["estimated_cost_usd"])
+                     calls_by_status=dict(by_status), estimated_cost_usd=trace.summary()["estimated_cost_usd"],
+                     photos_used=len(agent.observations) if agent else None,
+                     max_photos=agent.max_observations if agent else None,
+                     photo_min_calls=self.config.photo_min_calls)
 
     def list_specs(self) -> list[SpecSummary]:
         """Specifications that can be started now (free; no model calls). Files that do not validate (for example
@@ -276,9 +296,13 @@ class InspectionService:
         if spec_id is not None:
             spec = self._load_spec(spec_id)
         inspection_id = "insp_" + uuid.uuid4().hex
-        client = MetaClient(self.settings, Trace(), transport=_READ_ONLY_TRANSPORT, source=self.config.model_source)
+        settings = self.settings
+        if self.config.inspection_call_limit is not None:
+            settings = dataclasses.replace(settings, budget=dataclasses.replace(
+                settings.budget, max_model_calls=self.config.inspection_call_limit))
+        client = MetaClient(settings, Trace(), transport=_READ_ONLY_TRANSPORT, source=self.config.model_source)
         try:
-            state = InspectionAgent(spec, client, self.settings,  # type: ignore[arg-type]
+            state = InspectionAgent(spec, client, settings,  # type: ignore[arg-type]
                                     require_grounding=self.config.require_grounding).snapshot()
         finally:
             await client.aclose()
@@ -308,7 +332,8 @@ class InspectionService:
             overall=overall_assessment(agent.assessments),
             next_view=agent.requests[-1] if agent.requests and not agent.done else None,
             review_required=agent.review_items(), exhausted_gaps=dict(agent.exhausted), history=agent.history,
-            usage=self._usage(iid, rec.model_calls_reserved, rec.model_call_limit, agent.trace),
+            declarations=list(agent.declarations),
+            usage=self._usage(iid, rec.model_calls_reserved, rec.model_call_limit, agent.trace, agent),
             disclaimer=DISCLAIMER)
 
     # ------------------------------------------------------------------ captures
@@ -371,12 +396,13 @@ class InspectionService:
                 raise ServiceError(409, "stale_guidance",
                                    f"this photo answers {responding_to!r}, but the current guidance is "
                                    f"{current!r}")
-            client = MetaClient(self.settings, Trace.from_events(bundle.trace_events), transport=self.transport,
+            settings = self._settings_for(state.budget)
+            client = MetaClient(settings, Trace.from_events(bundle.trace_events), transport=self.transport,
                                 source=self.config.model_source,
                                 accounting=StoreAccounting(self.store, iid, token, key,
                                                            self.config.global_call_limit))
             try:
-                agent = InspectionAgent.restore(state, client, self.settings, bundle.images)
+                agent = InspectionAgent.restore(state, client, settings, bundle.images)
                 n_obs, n_trace = len(agent.observations), len(agent.trace.events)
                 step = await agent.observe(img)
             finally:
@@ -433,9 +459,9 @@ class InspectionService:
             inspection_id=iid, seq=step.seq, image_id=step.image_id, duplicate_of=last.get("duplicate_of"),
             notes=step.notes, status="stopped" if agent.done else "open", stop_reason=agent.stop_reason,
             assessments=step.assessments, overall=overall_assessment(step.assessments), next_view=step.next_view,
-            review_required=agent.review_items(),
+            review_required=agent.review_items(), view_check=step.view_check,
             version=version,
-            usage=self._usage(iid, counter, limit, agent.trace))
+            usage=self._usage(iid, counter, limit, agent.trace, agent))
 
     # ------------------------------------------------------------------ events
 
@@ -456,6 +482,27 @@ class InspectionService:
             raise
         return await self.get_inspection(inspection_id)
 
+    async def record_declaration(self, inspection_id: str, kind: str, *, seq: int | None = None,
+                                 device_id: str | None = None, requirement_id: str | None = None) -> InspectionState:
+        """A statement by the person inspecting (OperatorDeclaration). No model calls: the agent runs on a client
+        whose transport refuses the network, and any replacement camera request comes from the fixed templates."""
+        token = self._acquire(inspection_id)
+        try:
+            bundle = self._bundle(inspection_id)
+            async with self._read_only_agent(bundle) as agent:
+                try:
+                    await agent.declare(kind, seq=seq, device_id=device_id,  # type: ignore[arg-type]
+                                        requirement_id=requirement_id)
+                except ValueError as e:
+                    raise ServiceError(422, "declaration_refused", str(e)) from e
+                self.store.commit_step(inspection_id, token, bundle.version, agent.snapshot(), agent.trace.events,
+                                       agent.images)
+        except BaseException:
+            with contextlib.suppress(StoreError):
+                self.store.release_lease(inspection_id, token)
+            raise
+        return await self.get_inspection(inspection_id)
+
     # ------------------------------------------------------------------ reports and images
 
     async def get_report(self, inspection_id: str, fmt: str = "json") -> dict[str, Any] | str:
@@ -464,7 +511,7 @@ class InspectionService:
         async with self._read_only_agent(bundle) as agent:
             drift = agent.policy_drift()
             usage = self._usage(inspection_id, bundle.record.model_calls_reserved, bundle.record.model_call_limit,
-                                agent.trace)
+                                agent.trace, agent)
             if fmt == "md":
                 md = render_markdown(agent, overlays, agent.trace.summary())
                 if drift:

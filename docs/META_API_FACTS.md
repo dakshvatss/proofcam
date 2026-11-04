@@ -93,6 +93,8 @@ Docs are available as raw markdown: `https://dev.meta.ai/docs/<path>.md`; index 
 | Muse planner, given the spec's expected label, wrote "the printed 'LAN 1' text beside its boot" for a label no photo had shown (pre-M2.2 prompt) | LIVE |
 | SAM `network switch` returned 0 objects in all 8 switch groundings on the user's NETGEAR switch; SAM `router` also returned the switch as a second object in m4 and m7 | LIVE (recorded output, re-decoded offline) |
 | A SAM cable mask at an occupied port also reaches an empty neighbour's 50%-expanded Muse port region in 10 of 14 cases | LIVE (recorded output, re-decoded offline) |
+| 2026-11-04, `var/live-m33.db`, all recorded photos: SAM `hdmi cable` returned **0 objects in 12 of 12** (incl. clear PS5 HDMI close-ups where Muse saw a black HDMI plug); `ethernet cable` returned objects in 6 of 12; `blue ethernet cable` 2 of 5; `router` 11 of 12; `television` 3 of 5; `game console` 2 of 6 (once it returned the router's box) | LIVE (recorded output) |
+| Generic SAM concept `cable` as a fallback when a specific cable concept returns nothing (M3.7) | UNVERIFIED — not yet called live |
 
 ## Open questions (remaining)
 1. Same-device multi-view behaviour on real captures (not yet tested).

@@ -1,12 +1,12 @@
 {
   "id": "ps5_home_setup_v1",
   "title": "Home Entertainment Installation",
-  "max_photos": 8,
+  "max_photos": 12,
   "devices": [
     {
       "id": "router",
       "name": "Wi-Fi Router",
-      "description": "Dark blue/black rectangular Wi-Fi router with a circular logo on its top. On the rear: a row of five RJ45 Ethernet sockets with two USB-A sockets beside them, and a power cable attached.",
+      "description": "Black rectangular Wi-Fi router with a circular logo. On the rear: a row of four yellow RJ45 sockets printed LAN 1 to LAN 4, with a separate RJ45 socket immediately to their left.",
       "sam_concept": "router"
     },
     {
@@ -34,7 +34,7 @@
         {"device_id": "router", "port_label": "any LAN port",
          "selector": {"allowed_group": "LAN", "excluded_labels": ["WAN", "Internet"]}},
         {"device_id": "ps5", "port_label": "LAN port",
-         "selector": {"allowed_labels": ["LAN", "Ethernet"], "any_socket_of_connector": true}}
+         "selector": {"allowed_labels": ["LAN", "Ethernet"], "any_socket_of_connector": true, "only_socket": true}}
       ],
       "cable_identity": "require_trace"
     },
@@ -47,7 +47,7 @@
       "connector": "hdmi",
       "endpoints": [
         {"device_id": "ps5", "port_label": "HDMI OUT port",
-         "selector": {"allowed_labels": ["HDMI OUT", "HDMI"], "any_socket_of_connector": true}},
+         "selector": {"allowed_labels": ["HDMI OUT", "HDMI"], "any_socket_of_connector": true, "only_socket": true}},
         {"device_id": "tv", "port_label": "any HDMI input",
          "selector": {"excluded_labels": ["HDMI OUT"], "any_socket_of_connector": true}}
       ],

@@ -20,7 +20,7 @@ from proofcam.api import create_app
 from proofcam.policy import assess_requirement, mixed_connector_devices, overall_assessment
 from proofcam.report import build_report, render_markdown
 from proofcam.service import ServiceConfig
-from proofcam.spec import InspectionSpec
+from proofcam.spec import MAX_PHOTOS_LIMIT, InspectionSpec
 from proofcam.store import Store
 from test_multi_requirement import ccable, cport, rec
 
@@ -78,7 +78,7 @@ BOTH_HDMI = {"P1": HDMI, "P2": HDMI}
 # ------------------------------------------------------------------------------------- the active demo spec
 
 def test_home_setup_spec_is_loadable_and_has_no_placeholders(spec):
-    assert spec.title == "Home Entertainment Installation" and spec.max_photos == 8
+    assert spec.title == "Home Entertainment Installation" and spec.max_photos == 12
     assert [d.id for d in spec.devices] == ["router", "ps5", "tv"]
     assert [(r.id, r.connector, r.cable_color, r.cable_identity) for r in spec.requirements] == [
         ("R1", "ethernet", None, "require_trace"), ("R2", "hdmi", None, "require_trace")]
@@ -95,7 +95,8 @@ def test_spec_validation_rejects_unsafe_combinations(spec):
     with pytest.raises(ValidationError, match="label_aliases"):
         variant(spec, "R1", endpoint=0, endpoint_changes={"label_aliases": ["LAN 1"]})
     with pytest.raises(ValidationError):
-        InspectionSpec.model_validate({**json.loads(spec.model_dump_json()), "max_photos": 11})
+        InspectionSpec.model_validate({**json.loads(spec.model_dump_json()), "max_photos": MAX_PHOTOS_LIMIT + 1})
+    assert MAX_PHOTOS_LIMIT == 16  # raised from 10 in M3.7 (two-connection inspections ran out at 8 photos)
 
 
 # ---------------------------------------------------------------------------------- flexible router LAN port
@@ -260,7 +261,7 @@ def test_spec_photo_budget_is_enforced(spec):
     asyncio.run(ag.observe(make_image("a.jpg", color=(1, 2, 3))))
     step = asyncio.run(ag.observe(make_image("b.jpg", color=(4, 5, 6))))
     assert step.stop_reason == "observation_budget_exhausted" and ag.max_observations == 2
-    assert _agent(spec, FakeMeta()).max_observations == 8
+    assert _agent(spec, FakeMeta()).max_observations == 12
 
 
 def _sam_concepts(fm):
@@ -317,7 +318,7 @@ def test_home_setup_starts_free_lists_its_endpoints_and_recovers(tmp_path):
                     await c.post("/api/session", json={"access_code": "correct-horse-battery-staple"})
                     listed = {s["spec_id"]: s for s in (await c.get("/api/specs")).json()}
                     home = listed["ps5_home_setup"]
-                    assert home["max_photos"] == 8 and home["devices"] == ["Wi-Fi Router", "PlayStation 5",
+                    assert home["max_photos"] == 12 and home["devices"] == ["Wi-Fi Router", "PlayStation 5",
                                                                              "Samsung Television"]
                     assert home["requirements"][1]["endpoints"] == [
                         {"device": "PlayStation 5", "port": "HDMI OUT port", "flexible": True},

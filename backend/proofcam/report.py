@@ -15,6 +15,25 @@ DISCLAIMER = ("ProofCam verifies visually observable conditions only. It does no
 DEVICE_IDENTITY_NOTE = ("Devices are recognised in each photo by matching them to the spec description; this is not "
                         "independent proof that photos of a device show the same physical unit. A photo in which more "
                         "than one device matches the same spec device is not used for it.")
+PROVENANCE_NOTE = ("ProofCam does not record whether a photo is of physical equipment or synthetic (for example "
+                   "AI-generated); photos are identified only by file name and content hash. Model output is labelled "
+                   "live, mock or replay in the trace.")
+ASSURANCE_TEXT = {
+    "visual": "photos only (Muse observations grounded by SAM; labels read directly)",
+    "spec_assumption": "photos plus assumptions made by the spec author (listed)",
+    "operator_assisted": "photos plus statements by the person inspecting (listed); not independently verified",
+}
+
+
+def models_called(agent: InspectionAgent) -> list[dict]:
+    """Models that were actually called in this inspection, per provenance (from the trace, never assumed)."""
+    out: dict[tuple[str, str], dict] = {}
+    for e in agent.trace.model_calls():
+        k = (e.model or e.name, e.source)
+        row = out.setdefault(k, {"model": k[0], "source": k[1], "calls": 0, "errors": 0})
+        row["calls"] += 1
+        row["errors"] += e.status == "error"
+    return list(out.values())
 
 
 def write_report(agent: InspectionAgent, run_dir: Path, stored_overlays: dict[str, bytes] | None = None) -> dict:
@@ -71,8 +90,12 @@ def build_report(agent: InspectionAgent, inspection_id: str, overlays: dict[str,
         "exhausted_gaps": agent.exhausted,
         "overlays": overlays,
         "usage": agent.trace.summary(),
+        "models_called": models_called(agent),
+        "operator_declarations": [d.model_dump() for d in agent.declarations],
+        "photo_budget": {"photos_used": len(agent.observations), "max_photos": agent.max_observations},
         "disclaimer": DISCLAIMER,
         "device_identity_note": DEVICE_IDENTITY_NOTE,
+        "provenance_note": PROVENANCE_NOTE,
     }
 
 
@@ -86,6 +109,10 @@ def _ep_line(agent: InspectionAgent, ep) -> list[str]:
         L.append(f"  - supports [photo {s.seq} · {s.image_id} · {s.port_basis}]: {s.claim}{g}")
     for c in ep.conflicts:
         L.append(f"  - conflicts [photo {c.seq} · {c.image_id}]: {c.claim}")
+    for x in ep.candidates:
+        g = f" — grounding: {x.grounding.note}" if x.grounding else ""
+        L.append(f"  - observed by Muse, NOT corroborated by SAM (not counted) [photo {x.seq} · {x.image_id}]: "
+                 f"{x.claim}{g}")
     for x in ep.inferred_only:
         L.append(f"  - not counted [photo {x.seq} · {x.image_id} · {x.port_basis or 'unidentified'}]: {x.claim}")
     if ep.gap:
@@ -101,6 +128,8 @@ def _contributions(agent: InspectionAgent, seq: int) -> list[str]:
             name = f"{agent.spec.device(ep.device_id).name} {ep.port_label}"
             L += [f"- supports {name} ({x.port_basis})" for x in ep.support if x.seq == seq]
             L += [f"- conflicts with {name}: {x.claim}" for x in ep.conflicts if x.seq == seq]
+            L += [f"- plug at {name} observed by Muse but not corroborated by SAM (not counted)"
+                  for x in ep.candidates if x.seq == seq]
             L += [f"- plug at {name} seen but not counted ({x.port_basis or 'port not identified'})"
                   for x in ep.inferred_only if x.seq == seq]
         L += [f"- cable identity: {x.claim}" for x in a.identity_evidence if x.seq == seq]
@@ -108,14 +137,27 @@ def _contributions(agent: InspectionAgent, seq: int) -> list[str]:
 
 
 def render_markdown(agent: InspectionAgent, overlays: dict, usage: dict) -> str:
+    called = "; ".join(f"{m['model']} ({m['source']}): {m['calls']} call(s)" for m in models_called(agent)) or "none"
     L = [f"# ProofCam inspection: {agent.spec.title}", "", f"_{DISCLAIMER}_", "", f"_{DEVICE_IDENTITY_NOTE}_", "",
-         f"Stop reason: `{agent.stop_reason or 'open — no more photos supplied'}` · photos: {len(agent.observations)} · "
-         f"model calls: {usage['model_calls']} · est. cost ${usage['estimated_cost_usd']:.4f}", "",
+         f"_{PROVENANCE_NOTE}_", "",
+         f"Stop reason: `{agent.stop_reason or 'open — no more photos supplied'}` · photos: {len(agent.observations)} "
+         f"of up to {agent.max_observations} · model calls: {usage['model_calls']} · est. cost "
+         f"${usage['estimated_cost_usd']:.4f}", "", f"Models called: {called}", "",
          "Mode: static verification — all photos of one configuration are assumed to show the same unchanged "
          "installation; photo order does not change the assessment.", ""]
     if agent.epoch:
         L += [f"**The installation was declared changed {agent.epoch} time(s); only photos of configuration "
               f"{agent.epoch} count below.**", ""]
+    if agent.declarations:
+        L += ["## Statements by the person inspecting", "",
+              "_Recorded as stated; not verified by ProofCam. A verdict that relies on one is marked "
+              "operator-assisted._", ""]
+        for d in agent.declarations:
+            when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(d.created_at))
+            L.append(f"- `{d.id}` ({d.kind}, configuration {d.epoch}"
+                     + (", no longer counts: the installation was changed" if d.epoch != agent.epoch else "")
+                     + f", {when}): {d.statement}")
+        L.append("")
     review = agent.review_items()
     if review:
         L += ["## Review required", ""] + [f"- **{r['requirement_id']}**: {r['message']}" for r in review] + [""]
@@ -129,13 +171,21 @@ def render_markdown(agent: InspectionAgent, overlays: dict, usage: dict) -> str:
     for a in agent.assessments:
         req = agent.spec.requirement(a.requirement_id)
         L += [f"### {_ICON[a.status]} {req.id}: {req.text}", "", a.explanation, ""]
+        if a.assurance:
+            L += [f"Rests on: **{ASSURANCE_TEXT[a.assurance]}**.", ""]
         for ep in a.endpoints:
             L += _ep_line(agent, ep)
-        L.append(f"- Cable identity: **{a.identity_state}**")
+        L.append(f"- Cable identity: **{a.identity_state}**"
+                 + {"established": " (traced continuously in one photo)",
+                    "assumed_by_spec": " (spec assertion; not traced)",
+                    "declared_by_operator": " (statement by the person inspecting; not traced in any photo)",
+                    }.get(a.identity_state, ""))
         for x in a.identity_evidence:
             L.append(f"  - [photo {x.seq} · {x.image_id}] {x.claim}")
         for x in a.assumptions:
             L.append(f"- Assumption: {x}")
+        for x in a.operator_declarations:
+            L.append(f"- Operator declaration relied on: {x}")
         for x in a.contradictions:
             L.append(f"- Unresolved contradiction: {x}")
         for g in a.gaps:

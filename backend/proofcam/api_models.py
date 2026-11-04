@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .evidence import NextViewRequest, OverallAssessment, RequirementAssessment
+from .evidence import NextViewRequest, OperatorDeclaration, OverallAssessment, RequirementAssessment, ViewCheck
 from .spec import InspectionSpec
 
 
@@ -37,8 +37,30 @@ class CreateInspectionRequest(_Wire):
 
 
 class EventRequest(_Wire):
-    type: Literal["installation_changed"]
-    reason: str = Field(min_length=1, max_length=500)
+    """installation_changed (needs `reason`), or an operator declaration (needs `confirm: true`):
+    device_identity (`seq`, `device_id`) or cable_identity (`requirement_id`). Declarations are refused (422
+    declaration_refused) where the spec does not permit them or the evidence they refer to does not exist."""
+
+    type: Literal["installation_changed", "device_identity", "cable_identity"]
+    reason: str | None = Field(None, min_length=1, max_length=500)
+    seq: int | None = Field(None, ge=1)
+    device_id: str | None = Field(None, min_length=1, max_length=64)
+    requirement_id: str | None = Field(None, min_length=1, max_length=64)
+    confirm: bool = False
+
+    @model_validator(mode="after")
+    def _fields_for_type(self) -> EventRequest:
+        if self.type == "installation_changed":
+            if not self.reason:
+                raise ValueError("installation_changed needs a reason")
+            return self
+        if not self.confirm:
+            raise ValueError("a declaration must be explicitly confirmed (confirm: true)")
+        if self.type == "device_identity" and (self.seq is None or self.device_id is None):
+            raise ValueError("device_identity needs seq and device_id")
+        if self.type == "cable_identity" and self.requirement_id is None:
+            raise ValueError("cable_identity needs requirement_id")
+        return self
 
 
 class Usage(_Wire):
@@ -51,6 +73,12 @@ class Usage(_Wire):
     calls_by_status: dict[str, int]
     estimated_cost_usd: float
     cost_basis: str = "list prices applied to committed trace events; excludes calls with unknown outcome"
+    # Photo budget, separate from the call budget (whichever runs out first stops the inspection). None on responses
+    # stored before M3.7.
+    photos_used: int | None = None
+    max_photos: int | None = None
+    # Fewer calls left than this: a photo could not be analysed AND grounded, so the app disables capture.
+    photo_min_calls: int | None = None
 
 
 class ReviewItem(_Wire):
@@ -102,6 +130,8 @@ class InspectionState(_Wire):
     review_required: list[ReviewItem] = Field(default_factory=list)
     exhausted_gaps: dict[str, str]
     history: list[dict[str, Any]]
+    # Statements made by the person inspecting, all configurations, in order (the policy uses the current one's).
+    declarations: list[OperatorDeclaration] = Field(default_factory=list)
     usage: Usage
     disclaimer: str
 
@@ -140,6 +170,9 @@ class StepResponse(_Wire):
     overall: OverallAssessment | None = None
     next_view: NextViewRequest | None
     review_required: list[ReviewItem] = Field(default_factory=list)
+    # Did this photo show the view the previous camera request asked for? Guidance bookkeeping only; independent
+    # of evidence acceptance and of the verdicts above. None when no request was pending (e.g. the first photo).
+    view_check: ViewCheck | None = None
     version: int
     usage: Usage
     replayed: bool = Field(False, description="True when this is the stored response of an earlier request with "

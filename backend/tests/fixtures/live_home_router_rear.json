@@ -1,0 +1,435 @@
+{
+ "_provenance": "Recorded LIVE output (Meta Muse Spark 1.3 observation + SAM 3.1 link summaries), copied verbatim from the local live database: inspection insp_f70256d0dcd942dc94db772fb89abe5f (spec ps5_home_setup), photos 1 (front overview) and 3 (router rear panel), 2026-11-04. The photographs themselves are not included. Only the spec device description used at the time differed from the current one.",
+ "trace_sources": [
+  "live",
+  "local"
+ ],
+ "photo_1": {
+  "seq": 1,
+  "image_id": "img_f684245bf469",
+  "source_name": "IMG_6159.jpg",
+  "width": 353,
+  "height": 294,
+  "responding_to": null,
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Small black Jio router box, white PlayStation 5 console standing vertically, and Samsung television showing home screen all sitting on a wooden surface against a wall. No rear connection panels or ports are visible.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "router",
+     "identification_basis": "Small black rectangular box with circular Jio logo on front face",
+     "identification_certainty": "clear",
+     "visible_side": "front",
+     "ports_visible": false,
+     "box": {
+      "x1": 38,
+      "y1": 640,
+      "x2": 359,
+      "y2": 873
+     }
+    },
+    {
+     "ref": "D2",
+     "spec_device_id": "ps5",
+     "identification_basis": "Tall console with white outer covers around black centre body and PlayStation logo on cover",
+     "identification_certainty": "clear",
+     "visible_side": "unknown",
+     "ports_visible": false,
+     "box": {
+      "x1": 402,
+      "y1": 219,
+      "x2": 650,
+      "y2": 873
+     }
+    },
+    {
+     "ref": "D3",
+     "spec_device_id": "tv",
+     "identification_basis": "Large black flat-panel television displaying Games/Media UI",
+     "identification_certainty": "clear",
+     "visible_side": "front",
+     "ports_visible": false,
+     "box": {
+      "x1": 668,
+      "y1": 169,
+      "x2": 1000,
+      "y2": 845
+     }
+    }
+   ],
+   "ports": [],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "black",
+     "connector_type": "unclear",
+     "path_visibility": "mostly_hidden",
+     "connected_port_refs": []
+    }
+   ],
+   "unreadable_details": [
+    "Wi-Fi Router rear RJ45 LAN ports not visible",
+    "PlayStation 5 rear LAN port not visible",
+    "PlayStation 5 rear HDMI OUT port not visible",
+    "Samsung Television rear/side HDMI inputs not visible"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "game console",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       14.0,
+       196.0,
+       125.0,
+       277.0
+      ],
+      "confidence": 0.6604774594306946,
+      "mask_area_px": 8219
+     },
+     {
+      "object_id": "1",
+      "box_px": [
+       144.0,
+       78.0,
+       229.0,
+       277.0
+      ],
+      "confidence": 0.6878048777580261,
+      "mask_area_px": 14911
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "router",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       14.0,
+       196.0,
+       125.0,
+       277.0
+      ],
+      "confidence": 0.507692277431488,
+      "mask_area_px": 8236
+     },
+     {
+      "object_id": "1",
+      "box_px": [
+       144.0,
+       78.0,
+       229.0,
+       277.0
+      ],
+      "confidence": 0.6683937907218933,
+      "mask_area_px": 14865
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "television",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       236.0,
+       60.0,
+       353.0,
+       267.0
+      ],
+      "confidence": 0.9532163739204407,
+      "mask_area_px": 19847
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "router",
+    "sam_object_id": "0",
+    "iou": 0.671,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'router' object 0: box IoU 0.67, Muse box 86% inside its box, mask covers 82% of the Muse box, 78% of the mask inside it, area ratio 1.14 -> corroborated by box IoU"
+   },
+   "D2": {
+    "concept": "game console",
+    "sam_object_id": "1",
+    "iou": 0.823,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'game console' object 1: box IoU 0.82, Muse box 91% inside its box, mask covers 81% of the Muse box, 92% of the mask inside it, area ratio 1.01 -> corroborated by box IoU"
+   },
+   "D3": {
+    "concept": "television",
+    "sam_object_id": "0",
+    "iou": 0.866,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'television' object 0: box IoU 0.87, Muse box 95% inside its box, mask covers 85% of the Muse box, 99% of the mask inside it, area ratio 1.05 -> corroborated by box IoU"
+   }
+  },
+  "port_links": {}
+ },
+ "photo_3": {
+  "seq": 3,
+  "image_id": "img_e1311f4679b1",
+  "source_name": "IMG_6161.jpg",
+  "width": 1007,
+  "height": 871,
+  "responding_to": "nv1",
+  "epoch": 0,
+  "extraction": {
+   "image_usable": true,
+   "image_issues": [],
+   "shows_inspection_subject": true,
+   "scene_summary": "Close rear view of a black rectangular networking device on a wood surface, showing a DC power inlet, one occupied RJ45 with blue cable, four empty yellow LAN ports labeled LAN 1 to LAN 4, and one empty black RJ45 on the right.",
+   "devices": [
+    {
+     "ref": "D1",
+     "spec_device_id": "router",
+     "identification_basis": "Black rectangular networking box with rear LAN 1-4 labels and multiple RJ45 sockets",
+     "identification_certainty": "uncertain",
+     "visible_side": "rear",
+     "ports_visible": true,
+     "box": {
+      "x1": 0,
+      "y1": 192,
+      "x2": 1000,
+      "y2": 815
+     }
+    }
+   ],
+   "ports": [
+    {
+     "ref": "P1",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 81,
+      "y1": 574,
+      "x2": 192,
+      "y2": 728
+     },
+     "connector_type": "power"
+    },
+    {
+     "ref": "P2",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "cable_inserted",
+     "plug_color": "blue",
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 199,
+      "y1": 565,
+      "x2": 335,
+      "y2": 728
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P3",
+     "device_ref": "D1",
+     "label_read": "1",
+     "label_group": "LAN",
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 322,
+      "y1": 561,
+      "x2": 427,
+      "y2": 715
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P4",
+     "device_ref": "D1",
+     "label_read": "2",
+     "label_group": "LAN",
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 430,
+      "y1": 561,
+      "x2": 531,
+      "y2": 715
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P5",
+     "device_ref": "D1",
+     "label_read": "3",
+     "label_group": "LAN",
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 533,
+      "y1": 561,
+      "x2": 637,
+      "y2": 713
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P6",
+     "device_ref": "D1",
+     "label_read": "4",
+     "label_group": "LAN",
+     "label_legibility": "legible",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 640,
+      "y1": 560,
+      "x2": 745,
+      "y2": 713
+     },
+     "connector_type": "ethernet"
+    },
+    {
+     "ref": "P7",
+     "device_ref": "D1",
+     "label_read": null,
+     "label_group": null,
+     "label_legibility": "no_label",
+     "occupancy": "empty",
+     "plug_color": null,
+     "insertion_visibility": "clear",
+     "box": {
+      "x1": 830,
+      "y1": 564,
+      "x2": 954,
+      "y2": 717
+     },
+     "connector_type": "ethernet"
+    }
+   ],
+   "cables": [
+    {
+     "ref": "C1",
+     "color": "blue",
+     "connector_type": "ethernet",
+     "path_visibility": "partially_visible",
+     "connected_port_refs": [
+      "P2"
+     ]
+    }
+   ],
+   "unreadable_details": [
+    "USB-A sockets described for router not visible",
+    "circular logo on top not visible",
+    "label for blue-occupied port and rightmost black port not readable"
+   ]
+  },
+  "extraction_error": null,
+  "sam": [
+   {
+    "concept": "ethernet cable",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       104.0,
+       535.0,
+       360.0,
+       871.0
+      ],
+      "confidence": 0.8048780560493469,
+      "mask_area_px": 31794
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "hdmi cable",
+    "status": "ok",
+    "objects": [],
+    "error": null,
+    "diagnostics": []
+   },
+   {
+    "concept": "router",
+    "status": "ok",
+    "objects": [
+     {
+      "object_id": "0",
+      "box_px": [
+       0.0,
+       171.0,
+       1007.0,
+       682.0
+      ],
+      "confidence": 0.7770034670829773,
+      "mask_area_px": 468895
+     }
+    ],
+    "error": null,
+    "diagnostics": []
+   }
+  ],
+  "device_links": {
+   "D1": {
+    "concept": "router",
+    "sam_object_id": "0",
+    "iou": 0.941,
+    "overlap_px": null,
+    "corroborated": true,
+    "note": "best SAM 'router' object 0: box IoU 0.94, Muse box 94% inside its box, mask covers 86% of the Muse box, 100% of the mask inside it, area ratio 0.94 -> corroborated by box IoU"
+   }
+  },
+  "port_links": {
+   "P2|ethernet cable": {
+    "concept": "ethernet cable",
+    "sam_object_id": "0",
+    "iou": null,
+    "overlap_px": 19624,
+    "corroborated": true,
+    "note": "SAM 'ethernet cable' mask covers 19624px of the port region"
+   },
+   "P2|hdmi cable": {
+    "concept": "hdmi cable",
+    "sam_object_id": null,
+    "iou": null,
+    "overlap_px": 0,
+    "corroborated": false,
+    "note": "no SAM 'hdmi cable' mask reaches the port region"
+   }
+  }
+ }
+}

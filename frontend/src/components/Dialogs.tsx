@@ -65,6 +65,50 @@ export function ChangeDialog({ open, onCancel, onConfirm }: {
   )
 }
 
+/** Explicit confirmation of a statement by the person inspecting (device identity in one photo, or one cable between
+ * two supported ends). Shows the exact sentence that will be recorded and what it does and does not prove. */
+export function DeclareDialog({ statement, detail, onCancel, onConfirm }: {
+  statement: string
+  detail: string
+  onCancel: () => void
+  onConfirm: () => Promise<boolean>
+}) {
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy, onCancel])
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#0d1820]/40 backdrop-blur-[3px] sm:items-center sm:p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="declare-title"
+        className="animate-rise w-full max-w-md rounded-t-[1.5rem] border border-line bg-surface px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lift)] sm:rounded-[var(--radius-panel)]">
+        <span aria-hidden className="mx-auto mb-4 block h-1 w-10 rounded-full bg-line-strong sm:hidden" />
+        <h2 id="declare-title" className="text-xl font-semibold tracking-[-0.01em]">Confirm this yourself?</h2>
+        <p className="mt-3 rounded-[var(--radius-control)] border border-line bg-canvas p-3.5 text-[15px] font-medium leading-snug text-fg">
+          “{statement}”
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-fg-muted">{detail}</p>
+        <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+          It is recorded as <strong className="font-semibold text-fg">your statement</strong>, not as something the
+          models saw. Any verdict that relies on it is marked as relying on your statement in the app and the report.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <Button variant="secondary" size="lg" onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button size="lg" disabled={busy} onClick={async () => {
+            setBusy(true)
+            const ok = await onConfirm()
+            setBusy(false)
+            if (ok) onCancel()
+          }}>
+            {busy && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />} I confirm
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const STAGES = (live: boolean) => [
   { icon: ScanSearch, text: `${live ? 'Muse Spark 1.3' : 'The perception model (mock)'} describes the devices, ports and cables it can see` },
   { icon: Crosshair, text: `${live ? 'SAM 3.1' : 'The segmentation model (mock)'} outlines the equipment and cables to ground those claims` },

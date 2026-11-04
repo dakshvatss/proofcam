@@ -150,6 +150,15 @@ def test_uncertain_device_identification_never_supports(spec):
     o = rec(1, extraction(devices=[device("D1", "router", certainty="uncertain")],
                           ports=[port("P1", "D1", "LAN 1")]), grounded_ports=["P1"])
     a = assess_requirement(spec, spec.requirements[0], [o])
+    assert a.status == "INSUFFICIENT_EVIDENCE" and not a.endpoints[0].support
+    # Its ports were seen, so the gap is the device's identity, not "ports not visible" or "device not seen".
+    assert a.endpoints[0].state == "unknown" and a.endpoints[0].gap.code == "DEVICE_UNCONFIRMED"
+    assert a.endpoints[0].gap.context["unconfirmed_port_photos"] == [1]
+
+
+def test_uncertain_device_without_ports_is_not_seen(spec):
+    o = rec(1, extraction(devices=[device("D1", "router", certainty="uncertain", ports=False)], ports=[]))
+    a = assess_requirement(spec, spec.requirements[0], [o])
     assert a.endpoints[0].state == "unknown" and a.endpoints[0].gap.code == "DEVICE_NOT_SEEN"
     assert a.endpoints[0].gap.context["seen_uncertain"] is True
 

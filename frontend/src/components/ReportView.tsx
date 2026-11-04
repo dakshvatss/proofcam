@@ -4,7 +4,7 @@ import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, reportJsonUrl } from '../api/client'
 import type { InspectionState, RequirementAssessment } from '../api/types'
-import { GAP_TEXT, STATUS_TEXT, TEMPLATE_NAME, cn, connectionName } from '../lib/utils'
+import { ASSURANCE_TEXT, GAP_TEXT, IDENTITY_TEXT, STATUS_TEXT, TEMPLATE_NAME, cn, connectionName } from '../lib/utils'
 import { VERDICT } from '../lib/verdict'
 import { VerdictBadge } from './Evidence'
 import { Button } from './ui/button'
@@ -47,10 +47,16 @@ function RequirementSummary({ a, st }: { a: RequirementAssessment; st: Inspectio
   const req = st.spec.requirements.find((r) => r.id === a.requirement_id)
   const device = (id: string) => st.spec.devices.find((d) => d.id === id)?.name ?? id
   const photo = (seq: number) => st.photos.find((p) => p.seq === seq)
+  // A violated requirement leads with what ruled it out; otherwise the photos that support it.
+  const against = a.status === 'VIOLATED'
+    ? a.endpoints.flatMap((ep) => ep.conflicts.map((x) => ({ seq: x.seq, label: `${device(ep.device_id)} ${ep.port_label}`, claim: x.claim, tone: 'against' as const })))
+    : []
   const claims = [
-    ...a.endpoints.flatMap((ep) => ep.support.map((x) => ({ seq: x.seq, label: `${device(ep.device_id)} ${ep.port_label}`, claim: x.claim }))),
-    ...a.identity_evidence.map((x) => ({ seq: x.seq, label: 'Same cable at both ends', claim: x.claim })),
+    ...against,
+    ...a.endpoints.flatMap((ep) => ep.support.map((x) => ({ seq: x.seq, label: `${device(ep.device_id)} ${ep.port_label}`, claim: x.claim, tone: 'for' as const }))),
+    ...a.identity_evidence.map((x) => ({ seq: x.seq, label: 'Same cable at both ends', claim: x.claim, tone: 'for' as const })),
   ]
+  const statements = a.operator_declarations ?? []
   return (
     <section className="rounded-[var(--radius-panel)] border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -60,6 +66,12 @@ function RequirementSummary({ a, st }: { a: RequirementAssessment; st: Inspectio
         <VerdictBadge status={a.status} />
       </div>
       <p className="mt-2 text-[15px] leading-relaxed text-fg">{req?.text}</p>
+      {a.assurance && a.status !== 'INSUFFICIENT_EVIDENCE' && (
+        <p className={cn('mt-1.5 text-[13px] font-medium', a.assurance === 'operator_assisted' ? 'text-accent' : a.assurance === 'spec_assumption' ? 'text-warn' : 'text-fg-muted')}>
+          {ASSURANCE_TEXT[a.assurance]}
+        </p>
+      )}
+      <p className="mt-1.5 text-[13px] text-fg-muted">Same cable at both ends: {IDENTITY_TEXT[a.identity_state] ?? 'not established'}</p>
       {claims.length > 0 && (
         <ul className="mt-4 space-y-3">
           {claims.map((c, i) => {
@@ -68,7 +80,7 @@ function RequirementSummary({ a, st }: { a: RequirementAssessment; st: Inspectio
               <li key={i} className="flex gap-3">
                 {p && <img src={p.overlay_url ?? p.photo_url} alt={`Photo ${c.seq}`} className="h-14 w-[74px] shrink-0 rounded-lg border border-line bg-viewport object-cover" />}
                 <div className="min-w-0 text-[13px] leading-relaxed">
-                  <p className="font-semibold text-fg">{c.label} <span className="font-normal text-ok">· supported by photo {c.seq}</span></p>
+                  <p className="font-semibold text-fg">{c.label} <span className={cn('font-normal', c.tone === 'for' ? 'text-ok' : 'text-bad')}>· {c.tone === 'for' ? 'supported' : 'ruled out'} by photo {c.seq}</span></p>
                   <p className="break-words text-fg-muted">{c.claim}</p>
                 </div>
               </li>
@@ -76,8 +88,14 @@ function RequirementSummary({ a, st }: { a: RequirementAssessment; st: Inspectio
           })}
         </ul>
       )}
+      {statements.length > 0 && (
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-accent">
+          {statements.map((x) => <li key={x}>Relies on your statement: {x}</li>)}
+        </ul>
+      )}
       {a.status !== 'VERIFIED' && a.gaps.length > 0 && (
         <ul className="mt-4 space-y-1.5 border-t border-line pt-3 text-[13px] leading-relaxed text-fg-muted">
+          {a.status === 'VIOLATED' && <li className="font-semibold text-fg-subtle">Not observed (does not change this verdict):</li>}
           {a.gaps.map((g) => <li key={`${g.code}-${g.endpoint_index}`}><span className="font-semibold text-warn">{GAP_TEXT[g.code] ?? g.code}:</span> {g.missing_fact}</li>)}
         </ul>
       )}

@@ -1,5 +1,113 @@
 # Progress log
 
+## 2026-11-04 — M3.7: evidence levels, SAM recall fallback, operator statements, limits (no paid calls; not committed)
+
+**Diagnosed from the recorded live observations** in `var/live-m33.db` (read-only; see D39):
+- **Report B** (insp_c3ff…, Home Entertainment, 8 photos, 39/40 calls, INSUFFICIENT_EVIDENCE):
+  - SAM `hdmi cable` segmented **nothing in 12 of 12** recorded photos, including clear PS5 HDMI close-ups. Muse saw
+    the plug clearly in photos 5–7. Three photos went to re-framing the same plug. The cause is the concept's recall,
+    not camera angle, thresholds or geometry.
+  - Photo 4 (492×440 upload) reports a blue plug in the PS5 LAN socket. Photos 5–7 (iPhone photos) report the same
+    socket **clearly empty**. The policy still said "confirmed (photo 4)", because shape-identified sockets were never
+    cross-matched. This was a latent false-confirmation risk.
+  - Photo 8 showed the TV's HDMI panel. Muse marked the TV `uncertain` (no logo in frame), and the earlier overview
+    was rightly not reused.
+- **Report A** (insp_f1bb…, router→switch, VIOLATED): sound.
+  - Photo 3 read `LAN 1` as legible, clear and empty on an exact endpoint. The router was identified clearly, and SAM
+    corroborated it (IoU 0.95).
+  - The photo-2 refund and nv1 re-issue were correct.
+  - Only presentation was wrong: the report card led with the switch's "not identified" gap instead of the violating
+    evidence.
+
+**Changes (verdict states unchanged; policy only gets stricter, except where a spec explicitly permits a statement):**
+- `only_socket` selector flag. A spec-declared single socket is cross-matched across photos, so a plug in one photo and
+  the socket empty in another is a CONTRADICTION. It never creates a violation on its own. Set for the PS5 LAN and
+  HDMI OUT sockets.
+- Muse-only plugs are kept as `candidates` on the endpoint ("seen by Muse only · SAM did not corroborate"). They never
+  count as support.
+- SAM generic `cable` fallback: at most one extra call, within the per-photo SAM cap. It fires only when the
+  requirement's own concept returned no object at all. It uses a tighter region and an exclusivity check. Relying on
+  it is disclosed as an assumption. **Not yet observed live.**
+- Cable concepts that no occupied port could use are no longer sent, which saves one call on most single-family
+  photos.
+- `GROUNDING_MISSING` gets one targeted retry, then the guidance moves on with an honest reason.
+- Operator statements (`OperatorDeclaration`), only where the spec permits them:
+  - **Device identity:** for a device Muse claimed uncertainly in one photo. Never for an ambiguous or
+    differently-matched device. It supports evidence only and never creates a violation.
+  - **Cable identity:** between two supported endpoints whose connector family Muse reported. It is refused against
+    a contrary trace, which becomes a CONTRADICTION.
+  - Both are free (no model calls) and append-only. They are persisted and survive a restart.
+- `assurance` (`visual` / `spec_assumption` / `operator_assisted`) and `operator_declarations` on every
+  VERIFIED/VIOLATED requirement.
+- Limits:
+  - `MAX_PHOTOS_LIMIT` is now 16, and the Home spec allows 12 photos (was 8).
+  - The per-inspection call limit is configurable (`PROOFCAM_INSPECTION_CALL_LIMIT`, `start-live.ps1
+    -InspectionCallLimit`, default 40). It is fixed per inspection at creation.
+  - The app warns near either limit, and turns the camera off below 2 calls left.
+- Report: the assurance line, statements with time and configuration, Muse-only candidates, the models actually
+  called, the photo budget, and a provenance note (synthetic vs physical is **not** recorded).
+- New spec `ps5_home_setup_assisted.json` permits both statements. The strict `ps5_home_setup.json` does not; its
+  verification rules are unchanged apart from `only_socket`.
+
+**Replay of Report B (offline, 0 calls), current engine:**
+- R1 is CONTRADICTION (PS5 LAN: photo 4 vs 5–7), so review is required.
+- R2 PS5 HDMI is GROUNDING_MISSING (candidates 5–7, "SAM segmented no 'hdmi cable'"), exhausted after photo 6.
+- Photo 6's guidance moves to the TV.
+- Photo 8 is `captured` but gives `DEVICE_UNCONFIRMED`. It is declarable only under the assisted spec.
+
+**Tests:**
+- Backend: **465 passed**, 1 deselected (live). `test_m37_evidence.py` has 26 tests, including a Report B replay from
+  `tests/fixtures/live_home_report_b.json`.
+- Mutation-checked: each of 9 safety rules, when broken, fails a test.
+- Frontend: **50 passed** (`m37.test.tsx` 7); `tsc` clean; oxlint the same 3 known warnings; build OK.
+
+## 2026-11-04 — M3.6: view relevance vs evidence vs verdict (live-run fix; no paid calls; not committed)
+
+**Live failure:**
+- In inspection insp_f702… (live Muse Spark 1.3 + SAM 3.1), photo 3 showed the router rear as requested.
+- The app called it off-target and accepted 0 evidence items.
+- Diagnosed from the recorded observations in `var/live-m33.db` (see D38):
+  - **Muse:** read the ports and labels correctly, but marked the router `uncertain`. The spec description did not
+    match this router.
+  - **Guidance matching:** required a certain identification. This was the bug.
+  - **Policy:** kept a false "ports not visible" gap, so the planner repeated the request.
+
+**Fix:**
+- `ViewCheck` (captured / partial / not_captured) in the step response and history.
+- New gap `DEVICE_UNCONFIRMED`.
+- Clearer facts for permitted ports seen empty and for plugs in non-permitted ports.
+- Flexible-endpoint contradictions on the same labelled port.
+- Planner rules against cable-moving instructions and unsupported claims.
+- Accurate wording on the last-photo card ("Requested view captured", "Connection still needs evidence", "Port
+  identity could not be established").
+- The router description now holds only the facts the user gave.
+
+**Verification is unchanged:**
+- The policy still accepts only clearly identified devices.
+- Wrong-port VIOLATED is only possible under the existing criteria.
+
+**Replay of the recorded live inspection (offline, 0 model calls):**
+- Photo 2, a top view Muse attributed to no device: `not_captured`, refunded, nv1 kept.
+- Photo 3: `captured`, identity not confirmed, 0 evidence, gap `R1:DEVICE_UNCONFIRMED:0`.
+- Next request: a raised, angled view tying the router's identifying features to its ports.
+
+**Tests:**
+- `test_view_relevance.py` (20): the 12 requested scenarios, plus live photos 1 and 3 replayed from
+  `tests/fixtures/live_home_router_rear.json` (recorded output, copied verbatim; no photographs).
+- An updated policy test, now split in two.
+- An HTTP `view_check` check.
+- `viewcheck.test.tsx` (4).
+- Mutation-checked: each of these fails a test:
+  - requiring a certain identity in the matcher again;
+  - dropping the identity gap;
+  - dropping the flexible contradiction;
+  - letting the policy accept uncertain devices;
+  - letting excluded labels such as WAN count as permitted.
+
+**Results:**
+- Backend: 439 passed, 1 deselected.
+- Frontend: 43 passed; `tsc` clean; oxlint the same 3 known warnings; build OK.
+
 ## 2026-11-04 — M3.5: final release candidate (no paid calls; not committed)
 
 Release candidate for the demo. Nothing below has been run on the real hardware with live models.

@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import type { CameraAction, GapCode, RequirementStatus } from '../api/types'
+import type { Assurance, CameraAction, GapCode, RequirementStatus, ViewStatus } from '../api/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -38,6 +38,7 @@ export const PROGRESS_TEXT: Record<RequirementStatus | 'PENDING', string> = {
 export const TEMPLATE_NAME: Record<string, string> = {
   my_setup: 'Network Connection Verification',
   ps5_home_setup: 'Home Entertainment Installation',
+  ps5_home_setup_assisted: 'Home Entertainment · operator-assisted',
 }
 
 export const STOP_TEXT: Record<string, { title: string; detail: string; reopenable: boolean }> = {
@@ -87,9 +88,29 @@ export const ACTION_TEXT: Record<CameraAction, string> = {
   hold_steady_refocus: 'Hold steady and refocus',
 }
 
+/** What a final verdict rests on (server field `assurance`); the verdict itself is unchanged by it. */
+export const ASSURANCE_TEXT: Record<Assurance, string> = {
+  visual: 'Rests on the photos alone',
+  spec_assumption: 'Rests on the photos and disclosed spec assumptions',
+  operator_assisted: 'Relies on your statements: not independently verified',
+}
+
+export const IDENTITY_TEXT: Record<string, string> = {
+  established: 'traced in one photo',
+  assumed_by_spec: 'assumed by the spec',
+  declared_by_operator: 'declared by you · not traced',
+}
+
+export const VIEW_TEXT: Record<ViewStatus, string> = {
+  captured: 'Requested view captured',
+  partial: 'Requested area partially visible',
+  not_captured: 'Requested view not captured',
+}
+
 export const GAP_TEXT: Record<GapCode, string> = {
   CONTRADICTION: 'Photos disagree',
   DEVICE_NOT_SEEN: 'Device not identified',
+  DEVICE_UNCONFIRMED: 'Device identity not confirmed',
   PORTS_NOT_VISIBLE: 'Ports not visible',
   LABEL_ILLEGIBLE: 'Port label not readable',
   PORT_NOT_FOUND: 'Target port not found',

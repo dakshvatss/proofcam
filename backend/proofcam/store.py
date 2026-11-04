@@ -39,7 +39,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from . import __version__
 from .agent import AgentState, StopReason
-from .evidence import NextViewRequest, ObservationRecord, RequirementAssessment
+from .evidence import NextViewRequest, ObservationRecord, OperatorDeclaration, RequirementAssessment
 from .images import ImageLoadError, NormalizedImage
 from .spec import InspectionSpec
 from .trace import TraceEvent
@@ -217,6 +217,8 @@ class _Control(BaseModel):
     exhausted: dict[str, str]
     assessments: list[RequirementAssessment]
     stop_reason: StopReason | None
+    # Operator declarations (M3.7), append-only like the evidence; absent from earlier rows (= none).
+    declarations: list[OperatorDeclaration] = []
 
 
 # ---------------------------------------------------------------------------- schema
@@ -550,7 +552,7 @@ class Store:
                 observations=[ObservationRecord.model_validate_json(x) for x in obs],
                 requests=[NextViewRequest.model_validate_json(x) for x in reqs],
                 gap_attempts=control.gap_attempts, exhausted=control.exhausted, assessments=control.assessments,
-                stop_reason=control.stop_reason, epoch=rec.epoch,
+                stop_reason=control.stop_reason, epoch=rec.epoch, declarations=control.declarations,
                 history=[self._loads(x, "history entry") for x in hist],
                 model_calls_started=rec.model_calls_reserved, model_call_limit=rec.model_call_limit,
                 trace_event_count=len(trace))
@@ -868,7 +870,8 @@ class Store:
             _check_safe(_canonical(response), "submission response")
         control = _Control(require_grounding=state.require_grounding, plan_with_muse=state.plan_with_muse,
                            budget=state.budget, gap_attempts=state.gap_attempts, exhausted=state.exhausted,
-                           assessments=state.assessments, stop_reason=state.stop_reason)
+                           assessments=state.assessments, stop_reason=state.stop_reason,
+                           declarations=state.declarations)
         assessments_json = _canonical([a.model_dump(mode="json") for a in state.assessments])
         now = self._clock()
         try:
@@ -884,6 +887,9 @@ class Store:
                 if self._loads(control_json, "control state").get("budget") != state.budget \
                         or rec.model_call_limit != state.model_call_limit:
                     raise AppendOnlyViolation("snapshot budget differs from the inspection's stored budget")
+                stored_decl = self._loads(control_json, "control state").get("declarations") or []
+                if [d.model_dump(mode="json") for d in state.declarations[:len(stored_decl)]] != stored_decl:
+                    raise AppendOnlyViolation("operator declarations are append-only")
 
                 n_obs = self._append_prefix(c, "observations", "seq", "record_json", inspection_id, obs_json)
                 n_req = self._append_prefix(c, "next_view_requests", "ordinal", "request_json", inspection_id,

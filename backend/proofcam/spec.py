@@ -26,8 +26,8 @@ class DeviceSpec(_Strict):
 
 
 # Hard upper bound for a spec's own photo budget (InspectionSpec.max_photos). The per-inspection model-call budget and
-# the server-wide call cap still bind independently.
-MAX_PHOTOS_LIMIT = 10
+# the server-wide call cap still bind independently (a photo costs model calls; more photos never raise either cap).
+MAX_PHOTOS_LIMIT = 16
 
 
 class PortSelector(_Strict):
@@ -43,6 +43,12 @@ class PortSelector(_Strict):
                                socket). The port is then identified by its OBSERVED socket shape only - never from
                                the expectation - and the assumption is disclosed in every report.
 
+    only_socket              - the spec author asserts the device has exactly ONE socket of the requirement's connector
+                               family (e.g. a console's single LAN port). Observations of it in different photos, by
+                               label or by shape, are then the same port: a plug there in one photo and that socket
+                               clearly empty (or holding another cable) in another is a CONTRADICTION. It only ever
+                               blocks verification; it never creates a violation on its own.
+
     A port that none of the rules identifies does not qualify (unknown is never acceptable). Flexible endpoints never
     turn one empty permitted port into a violation, because another permitted port may hold the cable.
     """
@@ -51,6 +57,7 @@ class PortSelector(_Strict):
     allowed_group: str | None = None
     excluded_labels: list[str] = Field(default_factory=list)
     any_socket_of_connector: bool = False
+    only_socket: bool = False
 
     @model_validator(mode="after")
     def _some_rule(self) -> PortSelector:
@@ -103,7 +110,12 @@ class ConnectionRequirement(_Strict):
     #   require_trace          - one image must show the same cable continuously between both ports.
     #   unique_in_installation - the spec author asserts exactly one cable of this colour/type exists,
     #                            so endpoint observations may be joined. Disclosed in every report.
-    cable_identity: Literal["require_trace", "unique_in_installation"] = "require_trace"
+    #   trace_or_operator_declaration
+    #                          - a single-photo trace as for require_trace (the strongest standard); failing that,
+    #                            the person inspecting may declare that the two independently supported endpoints hold
+    #                            one cable. Never accepted against a contradicting trace or an open contradiction; the
+    #                            verdict is then marked operator-assisted and the declaration disclosed in every report.
+    cable_identity: Literal["require_trace", "unique_in_installation", "trace_or_operator_declaration"] = "require_trace"
     sam_concept: str | None = None
     # How a port may be identified:
     #   label_only      - its own printed label must be legible in the image (default).
@@ -140,6 +152,10 @@ class InspectionSpec(_Strict):
     requirements: list[Requirement]
     # Photos this inspection may use; null = the server default (6). Bounded by MAX_PHOTOS_LIMIT.
     max_photos: int | None = Field(None, ge=1, le=MAX_PHOTOS_LIMIT)
+    # The person inspecting may confirm that a device Muse claimed only UNCERTAINLY in one photo (e.g. a close-up of a
+    # TV's side panel without its logo) is the spec device. Disclosed as an operator assumption; never applied to a
+    # photo where Muse matched another spec device or where two devices claim the same one.
+    allow_device_identity_declarations: bool = False
 
     @model_validator(mode="after")
     def _check_refs(self) -> InspectionSpec:

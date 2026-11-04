@@ -79,6 +79,12 @@ _FALLBACK: dict[str, tuple[CameraAction, str]] = {
                                              "installation was changed, declare the change before photographing."),
     "DEVICE_NOT_SEEN": ("step_back_wide_view", "Step back and frame the whole {device} ({device_description}) "
                                                "so it is clearly identifiable."),
+    # The ports were already photographed, on a device not identified with certainty in that photo: asking for the
+    # same port view again would not help. One photo must tie the identifying features to the ports.
+    "DEVICE_UNCONFIRMED": ("look_down_from_above",
+                           "Photograph the {device} from a raised, angled position so that the same photo shows both "
+                           "its identifying features ({device_description}) and its connection ports. The ports were "
+                           "already seen, but not on a device that could be confirmed as the {device}."),
     "PORTS_NOT_VISIBLE": ("move_to_rear", "Move around to the side of the {device} where its connection ports "
                                           "are, and frame the port row including the printed labels."),
     # Neutral about label text: the spec's expected label is a requirement, not something seen in a photo.
@@ -89,17 +95,18 @@ _FALLBACK: dict[str, tuple[CameraAction, str]] = {
                                       "port expected to be {port_label} can be identified."),
     "INSERTION_UNCLEAR": ("move_closer", "Move closer to {target} so it is clear whether a plug is fully inserted "
                                          "and what colour it is."),
-    "GROUNDING_MISSING": ("move_closer", "Move closer to {target} so the plug and the cable leaving it are both "
-                                         "clearly visible and unobstructed."),
+    "GROUNDING_MISSING": ("move_closer", "From about 20-30 cm, photograph {target} so the plug body and a long "
+                                         "stretch of the cable leaving it are both clearly visible and unobstructed, "
+                                         "ideally against a plain background."),
     "CABLE_CONTINUITY": ("step_back_wide_view", "Step back so one photo shows {target}, from one device to "
                                                 "the other, without the cable being hidden."),
 }
 
 
 _HIDDEN_LABEL = ("move_closer", "A plug is in a {device} port whose printed label could not be read, so it is "
-                                 "not yet known whether this is {port_label}. Photograph that port row closely from a "
-                                 "low, angled position so that any label beside or under the plug can be read, and "
-                                 "keep the neighbouring ports' labels in the same frame.")
+                                 "not yet known whether this is {port_label}. Show a close-up of that occupied port "
+                                 "from a low, angled position so that any printed label beside or under the plug can "
+                                 "be read, and keep the neighbouring ports' labels in the same frame.")
 
 # --------------------------------------------------------------------------- unread-label presumption guard
 # The planner sees the spec's expected label (e.g. 'LAN 1'). Unless that text was actually read in a photo, guidance

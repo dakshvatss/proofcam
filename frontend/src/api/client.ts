@@ -1,7 +1,7 @@
 // Thin client for the ProofCam HTTP API. Relative /api URLs only (Vite proxies them to FastAPI in development);
 // no credentials of any kind live in the browser.
 
-import type { AccessStatus, Health, InspectionState, SpecSummary, StepResponse } from './types'
+import type { AccessStatus, DeclarationRequest, Health, InspectionState, SpecSummary, StepResponse } from './types'
 
 export const SPEC_ID = 'my_setup'
 // Captures are synchronous and slow (25-48 s observed; much longer in the worst case). After this the client stops
@@ -107,6 +107,14 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'installation_changed', reason }),
+    }),
+
+  /** A statement by the person inspecting (free: no model calls). Refused (422) unless the spec permits it. */
+  declare: (id: string, body: DeclarationRequest) =>
+    request<InspectionState>(`/api/inspections/${encodeURIComponent(id)}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, confirm: true }),
     }),
 
   reportMarkdown: (id: string) => request<string>(`/api/inspections/${encodeURIComponent(id)}/report?format=md`),

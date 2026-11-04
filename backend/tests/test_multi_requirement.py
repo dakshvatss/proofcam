@@ -252,10 +252,11 @@ def test_agent_asks_for_hdmi_evidence_once_ethernet_is_verified(spec):
     assert [a.status for a in step.assessments] == ["VERIFIED", "INSUFFICIENT_EVIDENCE"]
     assert step.next_view is not None and step.next_view.requirement_id == "R2"
     assert step.stop_reason is None
-    # both cable concepts were segmented in the same photo: each requirement grounds its own cable
+    # Each requirement grounds its own cable; a cable concept that no occupied port in the photo could use is not
+    # sent (M3.7: this photo has no HDMI port, so the HDMI concept would cost a call and add nothing).
     sam_concepts = [json.loads(r.content)["input"][0]["content"][0]["text"] for r in fm.requests
                     if r.url.path.endswith("/responses")]
-    assert ETH in sam_concepts and HDMI in sam_concepts
+    assert ETH in sam_concepts and HDMI not in sam_concepts
 
 
 # --------------------------------------------------------------------------------------- 9. contradictions

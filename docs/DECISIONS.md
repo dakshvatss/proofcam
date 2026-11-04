@@ -380,3 +380,148 @@ rather than changing the agent, so stored inspections show no new policy drift.
   - the report view is lazy-loaded;
   - mode labels LIVE / MOCK / REPLAY, with unknown sources never shown as live;
   - copy names Meta's models only where they actually ran (live), plus an explicit no-affiliation note.
+
+## D38 — View relevance is separate from evidence acceptance and verification (M3.6, 2026-11-04)
+**Trigger:** a live Home Entertainment inspection (insp_f702…, photo 3). The router's rear panel was photographed
+as requested: LAN 1–4 were legible and empty, and a blue plug sat in a separate socket with no readable label.
+The app said the photo "did not show what request nv1 asked for".
+
+**Cause:**
+- Muse read the photo correctly, but marked the router identification `uncertain`. Its own notes cite described
+  features it could not see (USB-A sockets, the top logo); the spec description did not match this router.
+- The request matcher (`_addresses`) required a certain identification, which is an evidence rule, not a
+  relevance rule, so it called the photo off-target.
+- The policy rightly ignored ports on an unconfirmed device, but kept the gap "ports have not been visible". The
+  planner therefore asked for the same view again.
+
+**Decision:** three separate questions, never one boolean.
+- **A. View relevance:** `agent._view_check` → `ViewCheck`.
+  - Built from structured fields only: the request's requirement, gap code and endpoint; the gap context when the
+    request was issued; the photo's observation claims.
+  - An uncertain identification of the target device counts as shown; an ambiguous one (two devices claimed as it)
+    does not.
+  - Status `captured` / `partial` / `not_captured`, with the parts shown and missing.
+  - Attempt accounting is unchanged except for the certainty requirement: a refund happens only when the device,
+    or for port-level gaps its ports, was not shown.
+- **B. Evidence acceptance:** unchanged. Only clearly identified devices, grounded ports and the existing checks
+  count.
+- **C. Verification:** unchanged criteria. Wrong-port VIOLATED arises only from the existing rules
+  (`unique_in_installation`, an exact endpoint, or an all-empty finite list).
+
+**New gap `DEVICE_UNCONFIRMED`:**
+- Emitted when ports of the device were photographed only while its identification was uncertain.
+- The next request asks for one view tying the identifying features to the ports, never for the same port view
+  again.
+
+**More accurate gap facts:**
+- Flexible endpoints list the permitted ports seen empty. That "does not show where the cable is".
+- They also list plugs in ports whose legible label rules them out (e.g. `WAN`).
+- Socket roles are never inferred from position or from the spec.
+
+**Contradictions on flexible endpoints:**
+- The same legible label on the same device, plugged in one photo and empty (or holding another cable) in
+  another, is now a CONTRADICTION, as for exact endpoints.
+- Before this, the empty observation was silently ignored.
+- Ports identified only by socket shape carry no label and are not cross-matched (a known limit).
+
+**Planner rules:**
+- Never ask to plug, unplug, move or re-seat a cable.
+- Never say a cable "must be" elsewhere.
+- No brands, models, colours or labels that are not observed or described.
+
+**Spec:** the router description in `ps5_home_setup.json` now states only facts the user gave: black, circular
+logo, four yellow RJ45 sockets printed LAN 1–4, and a separate RJ45 socket to their left. The unmatched "five
+RJ45 + two USB-A" claim is gone.
+
+**API (additive):**
+- `StepResponse.view_check` and `history[].view_check` are new.
+- `GapCode` gains `DEVICE_UNCONFIRMED`.
+- The engine fingerprint changes.
+
+## D39 — Evidence levels, single sockets, SAM recall fallback, operator statements (M3.7, 2026-11-04)
+**Trigger:** two live inspections on 2026-11-04 (Report A: router→switch VIOLATED; Report B: Home Entertainment, 8
+photos, INSUFFICIENT_EVIDENCE). Facts below are from their recorded observations, not from the screenshots.
+
+**1. Single sockets (`PortSelector.only_socket`).**
+- Report B photo 4 claimed a plug in the PS5 LAN socket. Photos 5–7 showed it clearly empty. The endpoint stayed
+  "confirmed", because sockets identified by shape carry no label and were never cross-matched.
+- When the spec author declares the device has exactly one socket of that family, all its observations share one
+  key. Support plus a clear empty or other-cable observation becomes a CONTRADICTION.
+- It deliberately never creates a VIOLATED on its own. Shape identification can misfire (USB mistaken for RJ45), and
+  a contradiction can only block verification.
+
+**2. Muse-only evidence stays visible, never counts.**
+- An endpoint's `candidates` holds plugs that passed every check except SAM grounding. The UI and report label them
+  "seen by Muse only".
+- No Muse-only acceptance route was added. A Muse assertion is never equivalent to grounded evidence.
+
+**3. SAM recall fallback (`grounding.FALLBACK_CABLE_CONCEPT = "cable"`).**
+- SAM `hdmi cable` returned 0 objects in 12/12 recorded photos; `ethernet cable` returned objects in 6/12.
+- When a requirement's concept returns **no object at all**, Muse **explicitly** reports that family at an occupied
+  port, and the per-photo SAM cap has room, one generic call is made.
+- Its mask must reach the port within a 25% (not 50%) grown region. It must not also reach an occupied port of a
+  different family.
+- It proves a cable is physically there, not its type, so support relying only on it is listed as an assumption
+  (assurance `spec_assumption`).
+- It is stored under the requirement's key with `concept="cable"`, because `GroundingLink` cannot gain fields: stored
+  records are compared byte-for-byte.
+- Not yet verified live (META_API_FACTS).
+
+**4. Fewer wasted calls and photos.**
+- A cable concept that no occupied port could use is not sent.
+- `GROUNDING_MISSING` gets one targeted retry (`_ATTEMPT_CEILING`). Report B spent three photos on one plug with SAM
+  finding nothing each time.
+
+**5. Operator statements (`OperatorDeclaration`): a separate provenance, never proof.**
+- Permitted only by spec: `allow_device_identity_declarations`, and `cable_identity:
+  "trace_or_operator_declaration"`.
+- **Device identity:**
+  - Allowed only for a photo of the current configuration in which exactly one device was claimed as that spec
+    device, with **uncertain** identification.
+  - Never re-labels a device Muse matched to something else. Never applies in an ambiguous (two-TV) photo. Never
+    carries over to other photos.
+  - Supports only: negative evidence from such a photo never violates.
+- **Cable identity:**
+  - Both endpoints must already be supported, with Muse having reported the connector family at both ports, and no
+    conflicting trace.
+  - A trace that contradicts the statement turns it into a CONTRADICTION with review.
+  - A real single-photo trace always takes precedence.
+- Statements are recorded verbatim with time and configuration, are append-only, and are retired by an installation
+  change. They cost no model calls: any replacement guidance comes from the templates.
+- Rejected alternatives:
+  - automatic reuse of an earlier identification for later close-ups;
+  - visual-similarity association across photos (not proof of the same unit; would need more Muse calls);
+  - colour matching for cable identity.
+
+**6. Assurance without new verdicts.** `RequirementAssessment.assurance`:
+- `visual`: photos only.
+- `spec_assumption`: socket shape, layout, unique cable, SAM fallback.
+- `operator_assisted`: any statement.
+- Set on VERIFIED and VIOLATED only. VERIFIED/VIOLATED/INSUFFICIENT_EVIDENCE are still set only by the policy.
+
+**7. Limits.**
+- `MAX_PHOTOS_LIMIT` 10 → 16. Home spec `max_photos` 8 → 12.
+- `PROOFCAM_INSPECTION_CALL_LIMIT` (default unchanged, 40) is fixed per inspection when it is created and restored
+  from storage, so existing inspections never change.
+- The global cap and its 8-call reserve are unchanged. Photo, per-inspection call and global call budgets stay
+  separate.
+- The app disables capture when fewer than `photo_min_calls` (2) remain. The server backstop is unchanged: with no
+  calls left, a capture stops the inspection without sending anything.
+
+**8. Specs.**
+- `ps5_home_setup.json` (strict): `only_socket` on both PS5 endpoints; 12 photos.
+- `ps5_home_setup_assisted.json` (new, separately listed): the same plus both statement permissions. It is never
+  selected silently.
+
+**API (additive):**
+- `EventRequest.type` adds `device_identity` and `cable_identity` (`confirm: true` required; 422
+  `declaration_refused`).
+- New fields:
+  - `InspectionState.declarations`;
+  - `Usage.photos_used`, `max_photos`, `photo_min_calls`;
+  - `RequirementAssessment.assurance`, `operator_declarations`;
+  - `EndpointAssessment.candidates`;
+  - `EvidenceItem.device_basis`.
+- `identity_state` adds `declared_by_operator`. The report adds `models_called`, `operator_declarations`,
+  `photo_budget` and `provenance_note`.
+- The engine fingerprint changes. Old inspections show the existing "recorded by an earlier version" notice.
