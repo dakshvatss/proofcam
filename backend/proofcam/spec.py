@@ -145,6 +145,27 @@ class ConnectionRequirement(_Strict):
 Requirement = ConnectionRequirement
 
 
+class AssistedMode(_Strict):
+    """Usability rules for an OPERATOR-ASSISTED template (M3.8). Only a spec that sets `assisted` gets them; every other
+    template keeps the default rules. None of them can produce a verdict from Muse alone: anything that would rely on
+    an unverified fact needs an explicit operator statement and is marked operator-assisted.
+
+    ignore_cable_color      - cable colour is recorded but never accepts or rejects a plug (connector family still
+                              must match: an HDMI plug in an RJ45 socket is never this requirement's plug).
+    confirmable_insertions  - a plug Muse saw clearly, at a port identified by label or socket shape, with the
+                              requirement's connector family explicitly reported, but which SAM did not corroborate,
+                              may be confirmed by the person inspecting. Refused where any photo contradicts it.
+    max_attempts_per_gap    - targeted camera requests per open fact; then guidance moves on (no re-framing loops).
+    suppress_micro_adjustments - planner instructions that are only small re-framings ("2 inches left", "tilt
+                              slightly") are replaced by the fixed template for the missing fact.
+    """
+
+    ignore_cable_color: bool = True
+    confirmable_insertions: bool = True
+    max_attempts_per_gap: int = Field(1, ge=1, le=3)
+    suppress_micro_adjustments: bool = True
+
+
 class InspectionSpec(_Strict):
     id: str
     title: str
@@ -156,6 +177,8 @@ class InspectionSpec(_Strict):
     # TV's side panel without its logo) is the spec device. Disclosed as an operator assumption; never applied to a
     # photo where Muse matched another spec device or where two devices claim the same one.
     allow_device_identity_declarations: bool = False
+    # Operator-assisted usability rules (see AssistedMode); None = the default rules.
+    assisted: AssistedMode | None = None
 
     @model_validator(mode="after")
     def _check_refs(self) -> InspectionSpec:
@@ -173,6 +196,11 @@ class InspectionSpec(_Strict):
             for e in r.endpoints:
                 if e.device_id not in ids:
                     raise ValueError(f"requirement {r.id} references unknown device {e.device_id}")
+        # A colour would still shape the SAM concept ("blue ethernet cable") and the wording; an assisted spec that
+        # ignores colour must not name one at all.
+        if self.assisted is not None and self.assisted.ignore_cable_color \
+                and any(r.cable_color for r in self.requirements):
+            raise ValueError("assisted.ignore_cable_color needs cable_color null on every requirement")
         return self
 
     def device(self, device_id: str) -> DeviceSpec:

@@ -1,5 +1,40 @@
 # Progress log
 
+## 2026-11-04 — M3.8: operator-assisted Home template usability (no paid calls; not committed)
+
+**Root causes of the repetition** (Report B record):
+- Muse's planner was free to answer an open fact with small re-framings ("shift a few inches left", "step back 6–8
+  inches"), and the same gap could be requested twice.
+- A plug Muse saw clearly but SAM missed could never be completed, so the only move left was another photo of the
+  same plug.
+
+**Changes (only where the spec sets `assisted`, i.e. `ps5_home_setup_assisted.json`):**
+- `AssistedMode` holds the explicit flags for this template.
+- **Colour:** ignored; the spec may not even name a colour. Connector family is still enforced.
+- **One targeted request per open fact**, then the guidance moves on with a clear note.
+- **Micro-adjustment guard:** planner instructions that only re-frame the same view are replaced by the fixed
+  template for the missing fact. The planner also gets assisted rules: seek new facts, several at once.
+- **New statement `endpoint_insertion`:** "the plug Muse saw is seated". It is allowed only for:
+  - a clear insertion,
+  - at a port identified by label or socket shape,
+  - where Muse explicitly reported the requirement's connector family,
+  - with no contrary photo (an empty or other-plug observation refuses it).
+
+  The item is marked `insertion_basis: operator_confirmed`, and the verdict is operator-assisted.
+- **Labels:** "Verified — operator-assisted" / "Verified — visual evidence" in the app and report
+  (`OverallAssessment.assurance`). The report tags every supporting item with its provenance (Muse observation, SAM
+  corroboration, socket assumption, operator statement).
+
+**Strict and exact templates are unchanged:**
+- they have no `assisted` block;
+- a test compares Report B's verdicts under both Home templates;
+- strict reports keep the plain `[VERIFIED]`.
+
+**Tests:**
+- Backend: **485 passed** (`test_m38_assisted.py` 20).
+- Mutation-checked: 6 of 6 new rules, when broken, fail a test.
+- Frontend: **54 passed**; `tsc` clean; oxlint the same 3 warnings; build OK.
+
 ## 2026-11-04 — M3.7: evidence levels, SAM recall fallback, operator statements, limits (no paid calls; not committed)
 
 **Diagnosed from the recorded live observations** in `var/live-m33.db` (read-only; see D39):

@@ -887,8 +887,9 @@ class Store:
                 if self._loads(control_json, "control state").get("budget") != state.budget \
                         or rec.model_call_limit != state.model_call_limit:
                     raise AppendOnlyViolation("snapshot budget differs from the inspection's stored budget")
-                stored_decl = self._loads(control_json, "control state").get("declarations") or []
-                if [d.model_dump(mode="json") for d in state.declarations[:len(stored_decl)]] != stored_decl:
+                stored_decl = [OperatorDeclaration.model_validate(d) for d in
+                               self._loads(control_json, "control state").get("declarations") or []]
+                if state.declarations[:len(stored_decl)] != stored_decl:
                     raise AppendOnlyViolation("operator declarations are append-only")
 
                 n_obs = self._append_prefix(c, "observations", "seq", "record_json", inspection_id, obs_json)

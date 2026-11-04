@@ -106,7 +106,7 @@ def _ep_line(agent: InspectionAgent, ep) -> list[str]:
     L = [f"- Endpoint {ep.index + 1} `{agent.spec.device(ep.device_id).name} {ep.port_label}`: **{ep.state}**"]
     for s in ep.support:
         g = f" — grounding: {s.grounding.note}" if s.grounding else ""
-        L.append(f"  - supports [photo {s.seq} · {s.image_id} · {s.port_basis}]: {s.claim}{g}")
+        L.append(f"  - supports [photo {s.seq} · {s.image_id} · {s.port_basis} · {_provenance(s)}]: {s.claim}{g}")
     for c in ep.conflicts:
         L.append(f"  - conflicts [photo {c.seq} · {c.image_id}]: {c.claim}")
     for x in ep.candidates:
@@ -118,6 +118,28 @@ def _ep_line(agent: InspectionAgent, ep) -> list[str]:
     if ep.gap:
         L.append(f"  - missing ({ep.gap.code}): {ep.gap.missing_fact}")
     return L
+
+
+def _provenance(s) -> str:
+    """Where one supporting item comes from: Muse observation, SAM corroboration, layout/shape assumption, statements."""
+    parts = ["Muse observation"]
+    if s.insertion_basis == "operator_confirmed":
+        parts.append("NOT SAM-corroborated; insertion confirmed by the operator")
+    elif s.grounding is not None and s.grounding.corroborated:
+        parts.append("SAM generic-cable corroboration" if s.grounding.note.startswith("fallback:")
+                     else "SAM corroboration")
+    if s.port_basis in ("connector_shape", "layout_inference"):
+        parts.append(f"socket {'shape' if s.port_basis == 'connector_shape' else 'layout'} assumption")
+    if s.device_basis == "operator_declared":
+        parts.append("device identity declared by the operator")
+    return " + ".join(parts)
+
+
+def verdict_label(status: str, assurance: str | None, assisted: bool = True) -> str:
+    """VERIFIED — VISUAL EVIDENCE / VERIFIED — OPERATOR-ASSISTED, from the policy's verdict and assurance."""
+    if status != "VERIFIED" or assurance is None or not assisted:
+        return _ICON[status]
+    return "[VERIFIED — OPERATOR-ASSISTED]" if assurance == "operator_assisted" else "[VERIFIED — VISUAL EVIDENCE]"
 
 
 def _contributions(agent: InspectionAgent, seq: int) -> list[str]:
@@ -164,13 +186,13 @@ def render_markdown(agent: InspectionAgent, overlays: dict, usage: dict) -> str:
     overall = overall_assessment(agent.assessments)
     if overall and len(agent.assessments) > 1:
         L += ["## Overall installation verdict", "",
-              f"**{_ICON[overall.status]}** {overall.explanation}", "",
+              f"**{verdict_label(overall.status, overall.assurance, agent.spec.assisted is not None)}** {overall.explanation}", "",
               "_Derived from the requirement verdicts below: VERIFIED only if every requirement is VERIFIED, "
               "VIOLATED if any is VIOLATED, otherwise INSUFFICIENT EVIDENCE._", ""]
     L += ["## Final verdict", ""]
     for a in agent.assessments:
         req = agent.spec.requirement(a.requirement_id)
-        L += [f"### {_ICON[a.status]} {req.id}: {req.text}", "", a.explanation, ""]
+        L += [f"### {verdict_label(a.status, a.assurance, agent.spec.assisted is not None)} {req.id}: {req.text}", "", a.explanation, ""]
         if a.assurance:
             L += [f"Rests on: **{ASSURANCE_TEXT[a.assurance]}**.", ""]
         for ep in a.endpoints:

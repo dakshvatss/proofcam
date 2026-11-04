@@ -41,11 +41,12 @@ class EventRequest(_Wire):
     device_identity (`seq`, `device_id`) or cable_identity (`requirement_id`). Declarations are refused (422
     declaration_refused) where the spec does not permit them or the evidence they refer to does not exist."""
 
-    type: Literal["installation_changed", "device_identity", "cable_identity"]
+    type: Literal["installation_changed", "device_identity", "cable_identity", "endpoint_insertion"]
     reason: str | None = Field(None, min_length=1, max_length=500)
     seq: int | None = Field(None, ge=1)
     device_id: str | None = Field(None, min_length=1, max_length=64)
     requirement_id: str | None = Field(None, min_length=1, max_length=64)
+    endpoint_index: int | None = Field(None, ge=0, le=1)
     confirm: bool = False
 
     @model_validator(mode="after")
@@ -60,6 +61,8 @@ class EventRequest(_Wire):
             raise ValueError("device_identity needs seq and device_id")
         if self.type == "cable_identity" and self.requirement_id is None:
             raise ValueError("cable_identity needs requirement_id")
+        if self.type == "endpoint_insertion" and (self.requirement_id is None or self.endpoint_index is None):
+            raise ValueError("endpoint_insertion needs requirement_id and endpoint_index")
         return self
 
 

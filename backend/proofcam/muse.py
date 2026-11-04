@@ -11,7 +11,7 @@ from .evidence import Gap, NextViewRequest
 from .images import NormalizedImage
 from .meta_client import MetaAPIError, MetaClient
 from .observation import CameraAction, NextViewPlan, ObservationExtraction
-from .prompts import OBSERVE_SYSTEM, PLAN_SYSTEM, observe_user_text, plan_user_text
+from .prompts import OBSERVE_SYSTEM, PLAN_ASSISTED_RULES, PLAN_SYSTEM, observe_user_text, plan_user_text
 from .spec import InspectionSpec
 from .wire_schema import wire_schema
 
@@ -167,6 +167,17 @@ def _guard_unread_labels(plan: NextViewPlan, gap: Gap, unread_labels: list[str],
                                            "label as visible text")
 
 
+# Assisted templates: a planner instruction that is only a small re-framing of the same view (a few inches/degrees,
+# "slightly", a sideways shift) does not name new evidence. It is replaced by the fixed template for the missing fact.
+_MICRO = re.compile(r"\b(slightly|a\s+(little|bit|touch|few\s+(inches|centimet\w+|cm|degrees))|"
+                    r"\d+(\.\d+)?\s*(-|to)?\s*\d*\s*(inch(es)?|cm|centimet\w+|mm|degrees?)\b|nudge|tilt)", re.I)
+_MICRO_ACTIONS = ("move_left", "move_right", "hold_steady_refocus")
+
+
+def is_micro_adjustment(plan: NextViewPlan) -> bool:
+    return plan.camera_action in _MICRO_ACTIONS or bool(_MICRO.search(plan.instruction))
+
+
 def fallback_plan(gap: Gap, previous_requests: list[str] | None = None) -> NextViewPlan:
     action, tmpl = _HIDDEN_LABEL if gap.context.get("label_hidden_by_plug") else _FALLBACK[gap.code]
     fields = {"target": gap.target, "device": gap.context.get("device", "device"),
@@ -196,7 +207,8 @@ async def plan_next_view(client: MetaClient, spec: InspectionSpec, gap: Gap, ima
         try:
             text = plan_user_text(spec, gap, recent_notes, evidence_state or [], previous_requests or [],
                                   unread_labels=unread)
-            plan = await _structured(client, NextViewPlan, system=PLAN_SYSTEM,
+            plan = await _structured(client, NextViewPlan,
+                                     system=PLAN_SYSTEM + (PLAN_ASSISTED_RULES if spec.assisted else ""),
                                      user=_image_message(text, image),
                                      image=image, purpose="muse_plan")
         except (MetaAPIError, ModelOutputError) as e:
@@ -208,6 +220,11 @@ async def plan_next_view(client: MetaClient, spec: InspectionSpec, gap: Gap, ima
             err = guard_note
             if guard_note.startswith("planner instruction"):
                 planner = "deterministic_fallback"
+    if (plan is not None and spec.assisted is not None and spec.assisted.suppress_micro_adjustments
+            and plan.visually_resolvable and is_micro_adjustment(plan)):
+        client.trace.add("plan", "micro_adjustment_guard", detail={"gap": gap.key, "instruction": plan.instruction})
+        err = f"planner instruction was only a small re-framing ({plan.camera_action}); fixed template used"
+        plan = None
     if plan is None:
         plan, planner = fallback_plan(gap, previous_requests), "deterministic_fallback"
     req = NextViewRequest(id=request_id, requirement_id=gap.requirement_id, gap_code=gap.code,

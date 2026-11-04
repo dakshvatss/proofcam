@@ -19,8 +19,8 @@
   .\scripts\start-live.ps1 -Db var/live-final.db -CallLimit 80 -InspectionCallLimit 70
 #>
 param(
-    [ValidateRange(1, 200)][int]$CallLimit = 20,
-    [ValidateRange(2, 200)][int]$InspectionCallLimit = 40,
+    [ValidateRange(1, 1000)][int]$CallLimit = 20,
+    [ValidateRange(2, 1000)][int]$InspectionCallLimit = 40,
     [string]$Db = "var/live-m33.db",
     [int]$Port = 8000,
     [ValidateSet("minimal", "low", "medium", "high")][string]$ReasoningEffort = "low"

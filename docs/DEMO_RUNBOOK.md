@@ -62,6 +62,22 @@ On the phone the app bar must show **Live models · 80 of 80 calls left**. If it
 Recommended for the video: **operator-assisted**. It shows what the models proved, what SAM could not corroborate,
 and what rests on you, and keeps them separate. Only use a statement after checking it physically.
 
+## 6a. Short demonstration (operator-assisted template, about 5–7 photos)
+1. **Overview** of router, PS5 and TV from the front (device identity context).
+2. **Router rear**, close and straight on: the plug in a `LAN n` socket with the label readable.
+3. **PS5 rear**: one photo showing BOTH the Ethernet plug (LAN) and the HDMI plug (HDMI OUT). It can establish both
+   PS5 ends at once.
+4. **TV HDMI panel** at an angle that also shows the TV's body or logo, with the `HDMI n` label readable.
+5. **Whatever the Next view card asks** (one request per missing fact, no re-framing loops).
+6. Then, only for what you have physically checked, use the buttons the app offers under "Missing evidence":
+   - **The plug is seated: I checked** (when SAM missed a plug Muse saw clearly);
+   - **Photo N shows the Samsung Television**;
+   - **It is one cable: I checked**, for each connection.
+7. Optional: one wide photo from behind the desk, if a cable run is fully visible. A real trace beats a statement.
+
+Expected result if everything is connected: **Verified — operator-assisted**, with the statements listed. If a
+photo shows a port empty, the statement buttons are refused: that is correct.
+
 ## 6. Shot plan (adaptive: always follow the actual Next view card after each photo)
 1. **Overview**: router, PS5 and TV together from the front. Expect "ports not visible" guidance.
 2. **Deliberately incomplete view**: the router's back from a steep angle or far away. Expect "port label not

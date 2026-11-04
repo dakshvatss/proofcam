@@ -8,6 +8,7 @@ import type {
 } from '../api/types'
 import {
   ACTION_TEXT, ASSURANCE_TEXT, GAP_TEXT, IDENTITY_TEXT, PROGRESS_TEXT, STATUS_TEXT, cn, connectionName, stopText,
+  verdictText,
 } from '../lib/utils'
 import { VERDICT } from '../lib/verdict'
 import { ConnectionDiagram } from './ConnectionDiagram'
@@ -55,6 +56,7 @@ function EvidenceRow({ item, tone, onShowPhoto }: { item: EvidenceItem; tone: 'f
         </span>
         {item.port_basis && BASIS_TEXT[item.port_basis] && <span className="text-xs text-warn">{BASIS_TEXT[item.port_basis]}</span>}
         {item.device_basis === 'operator_declared' && <span className="text-xs text-accent">device confirmed by you</span>}
+        {item.insertion_basis === 'operator_confirmed' && <span className="text-xs text-accent">plug confirmed by you · not SAM-corroborated</span>}
       </div>
       <p className="mt-1 break-words text-[13px] leading-relaxed text-fg-muted">{item.claim}</p>
       {item.grounding && (
@@ -121,6 +123,9 @@ const seqList = (items: EvidenceItem[]) => [...new Set(items.map((s) => s.seq))]
 /** How far the evidence for one endpoint got: accepted (and on what), seen by Muse only, or nothing yet. */
 function endpointLevel(ep: EndpointAssessment): { text: string; tone: 'ok' | 'warn' | 'accent' } | null {
   if (ep.state === 'established') {
+    if (ep.support.every((s) => s.insertion_basis === 'operator_confirmed')) {
+      return { text: 'seen by Muse · plug confirmed by you (SAM did not corroborate)', tone: 'accent' }
+    }
     return ep.support.every((s) => s.device_basis === 'operator_declared')
       ? { text: 'device confirmed by you', tone: 'accent' }
       : { text: 'seen by Muse · grounded by SAM', tone: 'ok' }
@@ -146,6 +151,17 @@ function declarations(g: Gap, spec: InspectionSpec): { req: DeclarationRequest; 
       statement: `Photo ${seq} shows the ${device}.`,
       detail: `Only confirm if you know this photo shows the ${device}. Muse could not identify it with certainty there; its ports in that photo will then count as evidence for the ${device}.`,
     }))
+  }
+  if (g.code === 'GROUNDING_MISSING' && r && g.endpoint_index !== null) {
+    const e = r.endpoints[g.endpoint_index]
+    const device = spec.devices.find((d) => d.id === e.device_id)?.name ?? e.device_id
+    const connector = r.connector === 'hdmi' ? 'HDMI' : r.connector ?? 'ethernet'
+    return [{
+      req: { type: 'endpoint_insertion', requirement_id: r.id, endpoint_index: g.endpoint_index },
+      label: 'The plug is seated: I checked',
+      statement: `The ${connector} plug Muse saw at the ${device} ${e.port_label} is fully seated in that port.`,
+      detail: 'Only confirm if you have checked the plug yourself. Muse saw it clearly but SAM did not corroborate it; the connection will be marked as relying on your statement. Photos showing that port empty would make this impossible.',
+    }]
   }
   if (g.code === 'CABLE_CONTINUITY' && r) {
     const ends = r.endpoints.map((e) => `${spec.devices.find((d) => d.id === e.device_id)?.name ?? e.device_id} ${e.port_label}`)
@@ -177,7 +193,7 @@ export function VerdictCard({ a, spec, onShowPhoto, onDeclare }: {
       <div className={cn('flex items-start gap-3.5 border-b px-5 py-4', v.tint)}>
         <Icon className={cn('mt-0.5 h-7 w-7 shrink-0', v.text)} strokeWidth={2.1} aria-hidden />
         <div className="min-w-0">
-          <p className={cn('text-xl font-semibold leading-tight tracking-[-0.01em]', v.text)}>{STATUS_TEXT[a.status]}</p>
+          <p className={cn('text-xl font-semibold leading-tight tracking-[-0.01em]', v.text)}>{verdictText(a.status, a.assurance, !!spec.assisted)}</p>
           <p className="mt-0.5 text-sm text-fg-muted">{v.caption}</p>
           {a.assurance && a.status !== 'INSUFFICIENT_EVIDENCE' && (
             <p data-testid="assurance" className={cn('mt-1.5 text-[13px] font-medium',
@@ -337,7 +353,7 @@ export function ProgressPanel({ overall, assessments, spec }: {
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-fg-subtle">Installation</p>
           <p className={cn('text-lg font-semibold leading-tight', v ? v.text : 'text-fg')}>
-            {overall ? STATUS_TEXT[overall.status] : 'Pending'}
+            {overall ? verdictText(overall.status, overall.assurance, !!spec.assisted) : 'Pending'}
           </p>
         </div>
         <span className="ml-auto text-right text-[13px] font-medium text-fg-muted">{n} connections to inspect</span>

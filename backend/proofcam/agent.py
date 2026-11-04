@@ -36,7 +36,8 @@ from .images import NormalizedImage
 from .meta_client import BudgetExhausted, MetaAPIError, MetaClient
 from .muse import ModelOutputError, extract_observations, plan_next_view, summarize_extraction
 from .observation import ObservationExtraction
-from .policy import ambiguous_device_ids, assess_requirement, connector_match, label_matches, select_gap
+from .policy import (ambiguous_device_ids, assess_requirement, confirmable, connector_match, label_matches,
+                     select_gap)
 from .spec import InspectionSpec
 
 # contradiction_requires_review: every remaining open requirement is blocked by a contradiction, which no further
@@ -280,7 +281,8 @@ class InspectionAgent:
                              "superseded_photos": [o.seq for o in self.observations if o.epoch < self.epoch]})
 
     async def declare(self, kind: DeclarationKind, *, seq: int | None = None, device_id: str | None = None,
-                      requirement_id: str | None = None, now: float | None = None) -> OperatorDeclaration:
+                      requirement_id: str | None = None, endpoint_index: int | None = None,
+                      now: float | None = None) -> OperatorDeclaration:
         """Record a statement by the person inspecting and re-assess (no model calls, no photo used).
 
         Refused (ValueError, nothing recorded) unless the spec permits that kind of declaration and the evidence it
@@ -293,12 +295,41 @@ class InspectionAgent:
         self._check_idle()
         self._busy = True
         try:
-            return await self._declare(kind, seq, device_id, requirement_id, now)
+            return await self._declare(kind, seq, device_id, requirement_id, endpoint_index, now)
         finally:
             self._busy = False
 
+    def _check_insertion(self, requirement_id: str | None, idx: int | None
+                         ) -> tuple[str, OperatorDeclaration | None]:
+        """Validate an endpoint_insertion statement (assisted templates only) against the current assessment."""
+        a_spec = self.spec.assisted
+        if a_spec is None or not a_spec.confirmable_insertions:
+            raise ValueError("this specification does not permit confirming a plug yourself")
+        req = next((r for r in self.spec.requirements if r.id == requirement_id), None)
+        if req is None or idx not in (0, 1):
+            raise ValueError("an insertion confirmation needs a requirement and an endpoint (0 or 1)")
+        a = next((x for x in self.assessments if x.requirement_id == req.id), None)
+        ep = a.endpoints[idx] if a is not None else None  # type: ignore[index]
+        dev = self.spec.device(req.endpoints[idx].device_id).name
+        if ep is None or ep.state == "established":
+            raise ValueError(f"the {dev} end is already established from photos")
+        if ep.state in ("violated", "contradicted") or ep.conflicts:
+            raise ValueError(f"photos show contrary evidence at the {dev} end (for example an empty port or another "
+                             "plug); a statement cannot override what the photos show")
+        ok = confirmable(self.current_observations, req, ep.candidates)
+        if not ok:
+            raise ValueError(f"no photo shows a plug Muse saw clearly at an identified {req.connector} port on the "
+                             f"{dev} that only lacks SAM corroboration")
+        seqs = ", ".join(str(s) for s in sorted({x.seq for x in ok}))
+        statement = (f"The {req.connector} plug seen in photo {seqs} is fully seated in the {dev} "
+                     f"{req.endpoints[idx].port_label}.")
+        existing = next((d for d in self.current_declarations if d.kind == "endpoint_insertion"
+                         and d.requirement_id == req.id and d.endpoint_index == idx), None)
+        return statement, existing
+
     async def _declare(self, kind: DeclarationKind, seq: int | None, device_id: str | None,
-                       requirement_id: str | None, now: float | None) -> OperatorDeclaration:
+                       requirement_id: str | None, endpoint_index: int | None,
+                       now: float | None) -> OperatorDeclaration:
         if kind == "device_identity":
             if not self.spec.allow_device_identity_declarations:
                 raise ValueError("this specification does not permit device-identity declarations")
@@ -317,7 +348,7 @@ class InspectionAgent:
             statement = f"Photo {seq} shows the {name}."
             existing = next((d for d in self.current_declarations
                              if d.kind == kind and d.seq == seq and d.device_id == device_id), None)
-        else:
+        elif kind == "cable_identity":
             req = next((r for r in self.spec.requirements if r.id == requirement_id), None)
             if req is None or req.cable_identity != "trace_or_operator_declaration":
                 raise ValueError("this requirement's specification does not permit a cable-identity declaration")
@@ -328,18 +359,24 @@ class InspectionAgent:
             statement = f"The {req.cable_desc()} at the {ends} is one and the same cable."
             existing = next((d for d in self.current_declarations
                              if d.kind == kind and d.requirement_id == req.id), None)
+        elif kind == "endpoint_insertion":
+            statement, existing = self._check_insertion(requirement_id, endpoint_index)
+        else:
+            raise ValueError(f"unknown declaration kind {kind!r}")
         if existing is not None:
             return existing  # idempotent: the same statement is recorded once
         decl = OperatorDeclaration(id=f"od{len(self.declarations) + 1}", kind=kind, epoch=self.epoch,
                                    statement=statement, seq=seq if kind == "device_identity" else None,
                                    device_id=device_id if kind == "device_identity" else None,
-                                   requirement_id=requirement_id if kind == "cable_identity" else None,
+                                   requirement_id=requirement_id if kind != "device_identity" else None,
+                                   endpoint_index=endpoint_index if kind == "endpoint_insertion" else None,
                                    created_at=time.time() if now is None else now)
         self.declarations.append(decl)
         self.trace.add("agent_step", "operator_declaration", detail=decl.model_dump())
         self._assess()
-        if not self.done:
-            if all(a.status != "INSUFFICIENT_EVIDENCE" for a in self.assessments):
+        resolved = all(a.status != "INSUFFICIENT_EVIDENCE" for a in self.assessments)
+        if not self.done or (resolved and self.stop_reason == "no_visually_resolvable_gaps"):
+            if resolved:
                 self.stop_reason = "all_requirements_resolved"
                 self.trace.add("stop", self.stop_reason)
             else:
@@ -540,13 +577,17 @@ class InspectionAgent:
                            detail={"request": pending.id, "gap": pending.gap_key})
         for k, n in self.gap_attempts.items():
             code = k.split(":")[1] if k.count(":") >= 2 else ""
-            if (k in open_keys and n >= _ATTEMPT_CEILING.get(code, self.budget.max_attempts_per_gap)
-                    and k not in self.exhausted):
-                self.exhausted[k] = (
-                    f"SAM still did not corroborate the plug Muse reported after {n} targeted "
-                    f"{'view' if n == 1 else 'views'}; another camera angle is unlikely to help. The plug stays on "
-                    "the record as observed by Muse but not corroborated." if code == "GROUNDING_MISSING"
-                    else f"still unresolved after {n} targeted views")
+            if k in open_keys and n >= self._attempt_ceiling(code) and k not in self.exhausted:
+                if code == "GROUNDING_MISSING":
+                    why = (f"SAM still did not corroborate the plug Muse reported after {n} targeted "
+                           f"{'view' if n == 1 else 'views'}; another camera angle is unlikely to help. The plug stays "
+                           "on the record as observed by Muse but not corroborated.")
+                elif self.spec.assisted is not None:
+                    why = ("one targeted view did not settle this, so the same view is not requested again; use "
+                           "another photo, confirm it yourself where offered, or continue with the other connections")
+                else:
+                    why = f"still unresolved after {n} targeted views"
+                self.exhausted[k] = why
                 notes.append(f"Giving up on gap {k}: {self.exhausted[k]}")
 
         if seq >= self.max_observations:
@@ -580,6 +621,11 @@ class InspectionAgent:
             self.requests.append(req)
             self.trace.add("plan", "next_view", image_id=image_id, detail=req.model_dump())
             return self._step(seq, image_id, name, req, notes, check)
+
+    def _attempt_ceiling(self, code: str) -> int:
+        """Targeted requests allowed per open fact: the assisted template's own limit, else per-code / budget."""
+        base = _ATTEMPT_CEILING.get(code, self.budget.max_attempts_per_gap)
+        return min(base, self.spec.assisted.max_attempts_per_gap) if self.spec.assisted is not None else base
 
     def _prioritize_concepts(self, ext: ObservationExtraction, cable_concepts: list[str],
                              concepts: list[str]) -> list[str]:

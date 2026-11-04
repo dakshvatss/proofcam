@@ -87,6 +87,10 @@ become `superseded` (kept, no longer counted), gap attempts reset, a non-budget 
 - Refused with 422 `declaration_refused` unless the spec permits it and the evidence exists. Offer them only where a
   gap's `context.declaration_permitted` is true.
 - Verdicts relying on a statement carry `assurance: "operator_assisted"` and list `operator_declarations`. Show both.
+- M3.8, assisted templates only (`spec.assisted`): `{"type": "endpoint_insertion", "requirement_id": "R2",
+  "endpoint_index": 0, "confirm": true}`. Offer it on a `GROUNDING_MISSING` gap whose `context.declaration_permitted`
+  is true. Supporting items then carry `insertion_basis: "operator_confirmed"`. `overall.assurance` drives the
+  "Verified — operator-assisted / visual evidence" labels.
 
 ### `GET /api/inspections/{id}/report?format=json|md`
 JSON report (adds `policy_drift`, `persistent_usage`, `engine_version {recorded, current}`, `version`,

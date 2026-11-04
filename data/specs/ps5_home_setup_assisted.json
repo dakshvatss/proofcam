@@ -91,5 +91,11 @@
       "cable_identity": "trace_or_operator_declaration"
     }
   ],
-  "allow_device_identity_declarations": true
+  "allow_device_identity_declarations": true,
+  "assisted": {
+    "ignore_cable_color": true,
+    "confirmable_insertions": true,
+    "max_attempts_per_gap": 1,
+    "suppress_micro_adjustments": true
+  }
 }

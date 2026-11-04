@@ -416,14 +416,37 @@ def _sam_found_nothing(o: ObservationRecord, concept: str) -> bool:
 _ONLY = "\x00only-socket"  # flexible cross-match key for a spec-declared single socket (never a printed label)
 
 
+def ignores_colour(spec: InspectionSpec, req: ConnectionRequirement) -> bool:
+    """Colour is not a criterion: the requirement accepts any colour, or an assisted template ignores colour."""
+    return req.cable_color is None or (spec.assisted is not None and spec.assisted.ignore_cable_color)
+
+
+def insertion_confirmations(spec: InspectionSpec, declarations: list[OperatorDeclaration] | tuple = ()
+                            ) -> set[tuple[str, int]]:
+    """(requirement id, endpoint index) pairs whose Muse-only insertion the person inspecting confirmed (assisted
+    templates that permit it only)."""
+    if spec.assisted is None or not spec.assisted.confirmable_insertions:
+        return set()
+    return {(x.requirement_id, x.endpoint_index) for x in declarations
+            if x.kind == "endpoint_insertion" and x.requirement_id and x.endpoint_index is not None}
+
+
+def confirmable(obs: list[ObservationRecord], req: ConnectionRequirement, items: list[EvidenceItem]
+                ) -> list[EvidenceItem]:
+    """Muse-only items strong enough for an operator to confirm: Muse explicitly reported the requirement's connector
+    family at that port (an 'unclear' or other family never qualifies)."""
+    return [x for x in items if _observed_family(obs, x) == req.connector]
+
+
 def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                     obs: list[ObservationRecord], require_grounding: bool,
-                    declared: frozenset[int] = frozenset()) -> EndpointAssessment:
-    """`declared`: photos the person inspecting declared show this endpoint's device (see device_declarations)."""
+                    declared: frozenset[int] = frozenset(), insertion_confirmed: bool = False) -> EndpointAssessment:
+    """`declared`: photos the person inspecting declared show this endpoint's device (see device_declarations).
+    `insertion_confirmed`: the person inspecting confirmed the Muse-only plug at this endpoint (assisted only)."""
     e = req.endpoints[idx]
     dev = spec.device(e.device_id)
     target = f"{dev.name} {e.port_label}" if e.flexible else f"{dev.name} port {e.port_label}"
-    any_colour = req.cable_color is None
+    any_colour = ignores_colour(spec, req)
     want = base_color(req.cable_color)
     plug_word = f"{req.cable_color} plug" if req.cable_color else "plug"
     what = f"one of the permitted ports ({e.port_label})" if e.flexible else e.port_label
@@ -578,6 +601,13 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
         return EndpointAssessment(index=idx, device_id=e.device_id, port_label=e.port_label, state=state,
                                   inferred_only=inferred_only, candidates=weak, gap=g, **kw)
 
+    if insertion_confirmed and not support and not conflicts and (ok := confirmable(obs, req, weak)):
+        # Assisted only: a statement can complete a plug Muse saw clearly at an identified port; never against any
+        # contrary observation (then the endpoint is contradicted below and the statement is not used).
+        support = [x.model_copy(update={
+            "insertion_basis": "operator_confirmed",
+            "claim": x.claim + " — SAM did not corroborate; insertion confirmed by the person inspecting"}) for x in ok]
+        weak = [x for x in weak if x not in ok]
     claimed_support = support + weak
     # A declaration supports identity only: negative evidence from a photo whose device identity rests on it never
     # establishes a violation on its own (it still blocks verification as a contradiction, below).
@@ -604,8 +634,13 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                      "angle may not change this.")
         else:
             fact += " A closer, unobstructed view of the plug and the cable leaving it is needed."
+        may_confirm = (spec.assisted is not None and spec.assisted.confirmable_insertions
+                       and bool(confirmable(obs, req, weak)))
+        if may_confirm:
+            fact += (" This template lets you confirm the plug yourself; the connection would then be marked as "
+                     "relying on your statement.")
         g = gap("GROUNDING_MISSING", fact, sam_segmented_nothing_in=sorted(set(sam_empty)),
-                muse_only_photos=sorted({x.seq for x in weak}))
+                muse_only_photos=sorted({x.seq for x in weak}), declaration_permitted=may_confirm)
     elif colour_uncertain:
         g = gap("INSERTION_UNCLEAR",
                 f"{target} holds a plug whose colour could not be established as {req.cable_color} (nor clearly as "
@@ -695,7 +730,7 @@ def identity_evidence(spec: InspectionSpec, req: ConnectionRequirement, obs: lis
     conflict is about the cable in one identified port, not about cable appearance.
     """
     want = base_color(req.cable_color)
-    any_colour = req.cable_color is None
+    any_colour = ignores_colour(spec, req)
     concept = req.cable_concept()
     allow_inference = req.port_identity == "label_or_layout"
     strict = mixed_connector_devices(spec)
@@ -793,8 +828,10 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
     """`declarations`: operator declarations of the CURRENT configuration (the caller filters by epoch). Used only
     where the spec permits them; see device_declarations and the cable-identity rules below."""
     declared_devices = device_declarations(spec, declarations)
+    seated = insertion_confirmations(spec, declarations)
     eps = [assess_endpoint(spec, req, i, obs, require_grounding,
-                           declared_devices.get(req.endpoints[i].device_id, frozenset())) for i in range(2)]
+                           declared_devices.get(req.endpoints[i].device_id, frozenset()), (req.id, i) in seated)
+           for i in range(2)]
     gaps = [ep.gap for ep in eps if ep.gap]
     contradictions = [f"{ep.device_id} {ep.port_label}: "
                       + "; ".join(f"[{x.image_id}] {x.claim}" for x in ep.support + ep.conflicts)
@@ -840,6 +877,11 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
         if ep.support and len(declared) == len(ep.support):
             operator.append(f"You confirmed that the device in {_photos(declared)} is the "
                             f"{spec.device(ep.device_id).name}; Muse could not identify it with certainty there.")
+        seated_items = [s for s in ep.support if s.insertion_basis == "operator_confirmed"]
+        if seated_items:
+            operator.append(f"You confirmed that the {req.connector} plug Muse saw in {_photos(seated_items)} is "
+                            f"seated in the {spec.device(ep.device_id).name} {ep.port_label}; SAM did not "
+                            "corroborate it.")
     both = all(ep.state == "established" for ep in eps)
     traced, near, trace_conflicts = identity_evidence(spec, req, obs, require_grounding)
     unique = req.cable_identity == "unique_in_installation"
@@ -965,9 +1007,13 @@ def overall_assessment(assessments: list[RequirementAssessment]) -> OverallAsses
     explanation = f"{why} ({'; '.join(f'{a.requirement_id} {a.status}' for a in assessments)})."
     if review:
         explanation += f" Contradictory evidence needs review for {', '.join(review)}."
+    assurance = None
+    if status == "VERIFIED":
+        order = ["visual", "spec_assumption", "operator_assisted"]
+        assurance = max((a.assurance or "visual" for a in assessments), key=order.index)
     return OverallAssessment(status=status, explanation=explanation,
                              requirement_statuses={a.requirement_id: a.status for a in assessments},
-                             review_required=review)
+                             review_required=review, assurance=assurance)
 
 
 def _ambiguity_note(spec: InspectionSpec, req: ConnectionRequirement, obs: list[ObservationRecord]) -> str:

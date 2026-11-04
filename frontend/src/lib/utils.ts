@@ -95,6 +95,12 @@ export const ASSURANCE_TEXT: Record<Assurance, string> = {
   operator_assisted: 'Relies on your statements: not independently verified',
 }
 
+/** Verdict wording. Operator-assisted templates name the provenance of a VERIFIED verdict; others are unchanged. */
+export function verdictText(status: RequirementStatus, assurance: Assurance | null | undefined, assisted: boolean) {
+  if (!assisted || status !== 'VERIFIED' || !assurance) return STATUS_TEXT[status]
+  return assurance === 'operator_assisted' ? 'Verified — operator-assisted' : 'Verified — visual evidence'
+}
+
 export const IDENTITY_TEXT: Record<string, string> = {
   established: 'traced in one photo',
   assumed_by_spec: 'assumed by the spec',

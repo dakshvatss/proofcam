@@ -4,7 +4,7 @@ import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, reportJsonUrl } from '../api/client'
 import type { InspectionState, RequirementAssessment } from '../api/types'
-import { ASSURANCE_TEXT, GAP_TEXT, IDENTITY_TEXT, STATUS_TEXT, TEMPLATE_NAME, cn, connectionName } from '../lib/utils'
+import { ASSURANCE_TEXT, GAP_TEXT, IDENTITY_TEXT, TEMPLATE_NAME, cn, connectionName, verdictText } from '../lib/utils'
 import { VERDICT } from '../lib/verdict'
 import { VerdictBadge } from './Evidence'
 import { Button } from './ui/button'
@@ -169,7 +169,9 @@ export function ReportView({ state: st, modelSource, onBack }: { state: Inspecti
             {Icon && <Icon className={cn('h-6 w-6 shrink-0', v!.text)} strokeWidth={2.1} aria-hidden />}
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.08em] text-fg-subtle">Overall verdict</p>
-              <p className={cn('text-lg font-semibold', v ? v.text : 'text-fg')}>{status ? STATUS_TEXT[status] : 'No photos analysed yet'}</p>
+              <p className={cn('text-lg font-semibold', v ? v.text : 'text-fg')}>
+                {status ? verdictText(status, st.overall?.assurance ?? (st.assessments.length === 1 ? st.assessments[0].assurance : null), !!st.spec.assisted) : 'No photos analysed yet'}
+              </p>
             </div>
           </div>
           {st.overall && <p className="mt-2 text-[13px] leading-relaxed text-fg-muted">{st.overall.explanation}</p>}

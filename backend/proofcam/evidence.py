@@ -93,6 +93,9 @@ class EvidenceItem(BaseModel):
     # How the DEVICE was identified in this photo: None = Muse identified it with clear certainty (the default);
     # "operator_declared" = Muse was uncertain and the person inspecting confirmed it (an OperatorDeclaration).
     device_basis: Literal["operator_declared"] | None = None
+    # None: the insertion is SAM-grounded (or grounding was not required). "operator_confirmed": Muse saw the plug
+    # clearly, SAM did not corroborate it, and the person inspecting confirmed it (assisted templates only).
+    insertion_basis: Literal["operator_confirmed"] | None = None
 
 
 class Gap(BaseModel):
@@ -153,6 +156,8 @@ class OverallAssessment(BaseModel):
     explanation: str
     requirement_statuses: dict[str, RequirementStatus]
     review_required: list[str] = Field(default_factory=list)  # requirement ids with unresolved contradictions
+    # For VERIFIED: the weakest assurance among the requirements (operator_assisted > spec_assumption > visual).
+    assurance: Literal["visual", "spec_assumption", "operator_assisted"] | None = None
 
 
 class NextViewRequest(BaseModel):
@@ -198,7 +203,7 @@ class ViewCheck(BaseModel):
     counted_as_attempt: bool
 
 
-DeclarationKind = Literal["device_identity", "cable_identity"]
+DeclarationKind = Literal["device_identity", "cable_identity", "endpoint_insertion"]
 
 
 class OperatorDeclaration(BaseModel):
@@ -216,5 +221,6 @@ class OperatorDeclaration(BaseModel):
     statement: str  # the exact sentence the person confirmed
     seq: int | None = None  # device_identity: the photo
     device_id: str | None = None  # device_identity: the spec device
-    requirement_id: str | None = None  # cable_identity: the requirement
+    requirement_id: str | None = None  # cable_identity / endpoint_insertion: the requirement
+    endpoint_index: int | None = None  # endpoint_insertion: which end (0 or 1)
     created_at: float

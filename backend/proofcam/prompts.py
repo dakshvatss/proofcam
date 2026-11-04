@@ -96,3 +96,14 @@ def plan_user_text(spec: InspectionSpec, gap: Gap, recent_notes: list[str],
         "what_recent_photos_showed": recent_notes,
         "task": "Plan the next camera view for the latest photo shown.",
     }, indent=1)
+
+
+# Appended to PLAN_SYSTEM for operator-assisted templates only (spec.assisted).
+PLAN_ASSISTED_RULES = """
+Operator-assisted template, additional rules:
+- Ask for a view that establishes a NEW fact, ideally several at once (for example one photo of the console's rear
+  showing both its Ethernet and HDMI plugs, or one photo of the TV's panel). Never ask for a small re-framing of the
+  same view: no "a few inches left/right", "slightly", "tilt", "step back 6 inches".
+- Name the object and the fact the photo must show, not the composition. Distances only as rough ranges for a whole
+  new viewpoint (e.g. "from behind the desk").
+- Cable colour does not matter in this template; do not mention it as a requirement."""

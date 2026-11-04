@@ -525,3 +525,30 @@ photos, INSUFFICIENT_EVIDENCE). Facts below are from their recorded observations
 - `identity_state` adds `declared_by_operator`. The report adds `models_called`, `operator_declarations`,
   `photo_budget` and `provenance_note`.
 - The engine fingerprint changes. Old inspections show the existing "recorded by an earlier version" notice.
+
+## D40 — Operator-assisted usability rules are a spec block, not a policy change (M3.8, 2026-11-04)
+**Where the rules live:** `InspectionSpec.assisted` (`AssistedMode`). It is set only in
+`ps5_home_setup_assisted.json`; every rule checks it, so no other template changes. The flags:
+- `ignore_cable_color`: the spec must not name a colour (it would still steer the SAM concept).
+- `confirmable_insertions`.
+- `max_attempts_per_gap` (1).
+- `suppress_micro_adjustments`.
+
+**Evidence tiers:**
+- **Grounded:** Muse plus SAM. Unchanged.
+- **Visually supported only:** an endpoint candidate, which never counts by itself.
+- **Operator-confirmed:**
+  - the device in one photo (D39);
+  - the plug seated, which is new;
+  - one cable (D39).
+- **Unresolved.**
+
+A plug confirmation needs everything except SAM, an explicitly reported connector family, and no contrary
+observation. It never overrides a contradiction or a violation. Generic SAM `cable` masks never prove a connector
+family.
+
+**Rejected:**
+- Accepting Muse-only plugs without a statement: that would turn uncertain evidence into VERIFIED.
+- Confirming ports whose label is hidden and whose shape is not accepted by the spec: Report A's wrong-port socket
+  is exactly that case.
+- Reusing an overview's device identity automatically.
