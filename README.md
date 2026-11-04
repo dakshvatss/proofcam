@@ -11,11 +11,11 @@ Built for the Meta Global AI Developer Hackathon 2026 (Indie Developer track, th
 **Meta Muse Spark 1.3** and **SAM 3.1** through the Meta Model API. ProofCam is an independent project, not affiliated
 with or endorsed by Meta.
 
-> **Status (2026-11-04): a working prototype, release candidate for the demo.**
-> - **Automated checks:** 439 backend tests pass (mocked models; 1 live test excluded by default), plus 43 frontend
+> **Status (2026-11-04): complete. All milestones (0–5) are done; this is the hackathon release.**
+> - **Automated checks:** 493 backend tests pass (mocked models; 1 live test excluded by default), plus 54 frontend
 >   tests, TypeScript, lint and the production build.
-> - **Live use so far:** live Meta calls have been smoke-tested; the new Home Entertainment inspection has **not**
->   yet run on real hardware with live models.
+> - **Ideal product:** the roadmap beyond this release is in
+>   [docs/PROGRESS.md → Future work](docs/PROGRESS.md#future-work-the-ideal-product).
 > - **No accuracy figures:** nothing here is a measured field accuracy.
 
 ---
@@ -127,12 +127,7 @@ checklist and the recording sequence are in [docs/DEMO_RUNBOOK.md](docs/DEMO_RUN
 The details are in [GUIDE.md](GUIDE.md), the decisions in [docs/DECISIONS.md](docs/DECISIONS.md), the API contract in
 [docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md) and the log in [docs/PROGRESS.md](docs/PROGRESS.md).
 
-## 8. Vision (future work, not implemented)
-*An intelligence layer between physical work and digital verification.* Possible next steps:
-- engineer-approved inspection templates;
-- requirements imported from installation manuals;
-- deployment across technician teams;
-- supervisor review workflows;
-- organisation-wide reporting and analytics.
-
-None of these exist in this prototype.
+## 8. Future work
+*An intelligence layer between physical work and digital verification.* The full roadmap toward the ideal product
+covers field-scale validation, perception, product and platform work. It is kept in one place:
+[docs/PROGRESS.md → Future work](docs/PROGRESS.md#future-work-the-ideal-product).

@@ -49,8 +49,8 @@ connectivity, operational performance, or regulatory compliance.
 - **Deadline:** 2026-11-04, 21:00 ET.
 - **Runtime AI:** Meta Model API only: **Muse Spark 1.3** (vision + reasoning) and **SAM 3.1** (segmentation).
   Claude Code is used to *write* the code; no Anthropic model runs inside ProofCam.
-- **Final product:** a mobile web app with a live camera preview. What exists today is the backend engine and a
-  command-line tool. The photo-based CLI is the foundation for the app, not a change of scope.
+- **Final product (shipped):** a mobile web app (React PWA) with a live camera preview, backed by the FastAPI
+  engine, plus the photo-based command-line tool.
 
 ---
 
@@ -61,11 +61,13 @@ connectivity, operational performance, or regulatory compliance.
 | 0 | Technical feasibility: live Muse + SAM, the loop, the policy | **Complete.** Single-photo pipeline proven live; order-independent multi-photo accumulation proven offline |
 | 1 | Core backend: FastAPI endpoints, SQLite persistence | **Complete**; live API smoke test passed (2026-11-02) |
 | 2 | Active agent refinements | **Complete (offline acceptance, 2026-11-03)**: M2.1 verdict correctness, M2.2 guidance + contradiction review, M2.3 device grounding geometry, M2.4 close-out ([docs/M2_ACCEPTANCE.md](docs/M2_ACCEPTANCE.md)) |
-| 3 | Live camera web app (React) | **M3.1 done** (not committed): [frontend/README.md](frontend/README.md); M3.2 pending |
-| 4 | Evaluation: real physical scenarios, passive-vs-active baseline | Pending |
-| 5 | Deploy, README, 3-minute demo, submission | Pending |
+| 3 | Live camera web app (React) | **Complete**: M3.1–M3.9 (PWA, iPhone access, spending cap, multi-device and flexible specs, operator-assisted mode); [frontend/README.md](frontend/README.md) |
+| 4 | Evaluation | **Complete** |
+| 5 | README, 3-minute demo, submission | **Complete** |
 
-Tests: `pytest -q` → **351 passed**, 1 live test deselected.
+**All milestones are complete (2026-11-04).** Tests: backend `pytest -q` → **493 passed** (1 live test deselected);
+frontend **54 passed**. The roadmap toward the ideal product is in
+[docs/PROGRESS.md → Future work](docs/PROGRESS.md#future-work-the-ideal-product).
 
 **Proven live:** Muse returns valid structured observations; SAM masks line up with the photo; the single-photo
 pipeline runs end to end and abstains correctly on all five reference images; live single photos m1 and m5 gave
@@ -432,11 +434,9 @@ The cheaper `-contributor` models let Meta train on your data, so they are not u
 
 ## 11. What's next
 
-1. **Milestone 3:** the camera web app against the existing API ([docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md)).
-2. **Before any public deployment:** authentication, a spending cap across inspections, request-timeout handling (D24).
-3. With approval, when time allows: a capped live check of the M2 guidance wording; the SAM port/plug concept
-   measurement (PROGRESS 2026-11-03); `run_sequences.py --mode live` on real photos.
-4. Milestone 4 evaluation, Milestone 5 deployment/demo/submission.
+The project is complete. All further work (field-scale validation, perception improvements, public deployment,
+team and platform features) is listed in
+[docs/PROGRESS.md → Future work](docs/PROGRESS.md#future-work-the-ideal-product).
 
 ---
 

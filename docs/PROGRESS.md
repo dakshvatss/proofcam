@@ -1,5 +1,57 @@
 # Progress log
 
+## Project status: COMPLETE (2026-11-04)
+
+All milestones are done, and ProofCam ships as the hackathon release.
+
+| Milestone | Status |
+|---|---|
+| 0 Technical feasibility | **Done** |
+| 1 Core backend (FastAPI, SQLite, idempotent captures) | **Done** |
+| 2 Active agent (verdict correctness, guidance, grounding geometry) | **Done** |
+| 3 Live camera web app (M3.1–M3.9: PWA, iPhone access, spending cap, multi-device/flexible specs, operator-assisted mode) | **Done** |
+| 4 Evaluation | **Done** |
+| 5 README, guide, demo runbook, submission | **Done** |
+
+Final automated checks: backend **493 passed** (mocked models); frontend **54 passed**; typecheck, lint and the
+production build pass.
+
+The dated entries below are the historical build log. Each entry's "not committed / pending" notes describe the
+state on that day. Everything is now committed and closed out.
+
+## Future work: the ideal product
+
+ProofCam is complete as a hackathon product. The items below are the "best version" of it. None of them is
+implemented, and they are not bugs or unfinished milestones.
+
+**Validation at scale**
+- Run the Home Entertainment and assisted templates end to end on more real hardware with live models.
+- Run a measured field evaluation (many installations, labelled ground truth) to publish accuracy figures.
+  Today there are none.
+- Compare a passive single-photo baseline with the active agent on the same scenes.
+- Validate the M2 guidance wording live, measure SAM port/plug concepts, and run
+  `run_sequences.py --mode live` on real photos.
+
+**Perception**
+- Tell apart adjacent same-colour cables at port level (D32), with tighter port boxes.
+- Prove cross-photo physical identity of a device (serial or label reading, visual re-identification).
+- Improve SAM recall for thin cables and HDMI plugs without operator statements.
+- Verify cables that run through walls or behind furniture (multi-photo continuity, not just one tracing photo).
+
+**Product**
+- Live-preview overlays with proven alignment, plus on-device framing hints before capture.
+- Asynchronous captures with progress streaming, replacing the 25–48 s synchronous call.
+- Public deployment: real user accounts and authentication, per-organisation spend caps, timeouts and rate
+  limits (D24).
+- Requirement types beyond `connection`: presence, orientation, labelling, cable management.
+
+**Platform vision**: *an intelligence layer between physical work and digital verification.*
+- Engineer-approved inspection templates and a template library.
+- Requirements imported automatically from installation manuals.
+- Deployment across technician teams, with supervisor review and sign-off workflows.
+- Organisation-wide reporting, analytics and audit export.
+- Integrations with field-service and ticketing systems.
+
 ## 2026-11-04 — M3.9: assisted template accepts a router OR a Jio set-top box (no paid calls; not committed)
 - An **intentional spec change**, requested by the user for this installation. The equipment is a dark navy Jio
   set-top box with one RJ45 socket and a white Ethernet cable to the PS5. This is not a claim that a set-top box is
