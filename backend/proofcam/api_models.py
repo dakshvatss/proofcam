@@ -120,6 +120,22 @@ class StepResponse(_Wire):
                                               "the same Idempotency-Key (no new step, no model calls).")
 
 
+class SessionRequest(_Wire):
+    access_code: str = Field(min_length=1, max_length=200)
+
+
+class AccessStatus(_Wire):
+    """Unauthenticated status for the app: whether a session is needed, the model mode, and (when authenticated)
+    the server-wide spending cap."""
+
+    auth_required: bool
+    authenticated: bool
+    model_source: str
+    global_model_calls: int | None
+    global_call_limit: int | None
+    global_remaining: int | None
+
+
 class Health(_Wire):
     status: Literal["ok", "degraded"]
     schema_version: int

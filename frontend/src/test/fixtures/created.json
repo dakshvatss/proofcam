@@ -1,0 +1,87 @@
+{
+ "id": "insp_822cd58814f04a6397c05b37177d76ba",
+ "spec_id": "my_setup",
+ "title": "TP-Link router LAN 1 to NETGEAR switch port 3 (blue Ethernet cable)",
+ "status": "open",
+ "stop_reason": null,
+ "epoch": 0,
+ "version": 0,
+ "engine_version": "0.0.1+d2a953f9780f",
+ "engine_changed": false,
+ "policy_drift": [],
+ "busy": false,
+ "spec": {
+  "id": "my_setup_v1",
+  "title": "TP-Link router LAN 1 to NETGEAR switch port 3 (blue Ethernet cable)",
+  "devices": [
+   {
+    "id": "router",
+    "name": "Router",
+    "description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
+    "sam_concept": "router",
+    "port_rows": [
+     [
+      "LAN 1",
+      "LAN 2",
+      "LAN 3",
+      "LAN 4"
+     ]
+    ]
+   },
+   {
+    "id": "switch",
+    "name": "Switch",
+    "description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
+    "sam_concept": "network switch",
+    "port_rows": [
+     [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+     ]
+    ]
+   }
+  ],
+  "requirements": [
+   {
+    "id": "R1",
+    "kind": "connection",
+    "text": "The blue Ethernet cable must connect Router LAN 1 to Switch Port 3.",
+    "cable_color": "blue",
+    "cable_type": "ethernet cable",
+    "endpoints": [
+     {
+      "device_id": "router",
+      "port_label": "LAN 1",
+      "label_aliases": []
+     },
+     {
+      "device_id": "switch",
+      "port_label": "3",
+      "label_aliases": []
+     }
+    ],
+    "cable_identity": "require_trace",
+    "sam_concept": null,
+    "port_identity": "label_only"
+   }
+  ]
+ },
+ "photos": [],
+ "assessments": [],
+ "next_view": null,
+ "review_required": [],
+ "exhausted_gaps": {},
+ "history": [],
+ "usage": {
+  "model_calls": 0,
+  "model_call_limit": 40,
+  "remaining": 40,
+  "calls_by_status": {},
+  "estimated_cost_usd": 0.0,
+  "cost_basis": "list prices applied to committed trace events; excludes calls with unknown outcome"
+ },
+ "disclaimer": "ProofCam verifies visually observable conditions only. It does not certify electrical safety, hidden connectivity, operational performance, or regulatory compliance."
+}

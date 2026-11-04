@@ -58,30 +58,32 @@ connectivity, operational performance, or regulatory compliance.
 
 | Milestone | What | Status |
 |---|---|---|
-| 0 | Technical feasibility: live Muse + SAM, the loop, the policy | Single-photo pipeline **done** live. Order-independent multi-photo accumulation implemented and proven **offline**; live multi-photo experiment not yet run |
-| 1 | Core backend: FastAPI endpoints, SQLite persistence | Not started |
-| 2 | Active agent refinements: better gap planning, contradiction handling | Not started |
-| 3 | Live camera web app (React) | Not started; no `frontend/` folder yet |
-| 4 | Evaluation: real physical scenarios, passive-vs-active baseline | Not started |
-| 5 | Deploy, README, 3-minute demo, submission | Not started |
+| 0 | Technical feasibility: live Muse + SAM, the loop, the policy | **Complete.** Single-photo pipeline proven live; order-independent multi-photo accumulation proven offline |
+| 1 | Core backend: FastAPI endpoints, SQLite persistence | **Complete**; live API smoke test passed (2026-11-02) |
+| 2 | Active agent refinements | **Complete (offline acceptance, 2026-11-03)**: M2.1 verdict correctness, M2.2 guidance + contradiction review, M2.3 device grounding geometry, M2.4 close-out ([docs/M2_ACCEPTANCE.md](docs/M2_ACCEPTANCE.md)) |
+| 3 | Live camera web app (React) | **M3.1 done** (not committed): [frontend/README.md](frontend/README.md); M3.2 pending |
+| 4 | Evaluation: real physical scenarios, passive-vs-active baseline | Pending |
+| 5 | Deploy, README, 3-minute demo, submission | Pending |
 
-**Proven live (2026-10-31):** Muse returns valid structured observations; SAM returns masks that line up with the
-photo; the whole single-photo pipeline runs end to end; it abstains correctly on all five reference images.
+Tests: `pytest -q` → **351 passed**, 1 live test deselected.
 
-**Proven offline (2026-10-31):** with one persistent agent, the recorded observations of the user's own photos
-(m2 router close-up, m3 switch close-up, m7 wide view) reach the identical final assessment in every order;
-synthetic complementary photos reach VERIFIED in all 6 orders (see [docs/PROGRESS.md](docs/PROGRESS.md)).
-Live single-photo runs on m1 and m5 produced correct VIOLATED verdicts (switch port 3 clearly empty).
+**Proven live:** Muse returns valid structured observations; SAM masks line up with the photo; the single-photo
+pipeline runs end to end and abstains correctly on all five reference images; live single photos m1 and m5 gave
+correct VIOLATED verdicts (switch port 3 clearly empty); one capture through the real HTTP API (M1 smoke test)
+committed, survived a restart and replayed idempotently. The only live VERIFIED used an **AI-generated** third photo.
 
-**Not yet proven live:** the multi-photo experiment (`experiments/run_sequences.py --mode live`); any live
-VERIFIED. On the user's setup the plug hides the target labels, so the strict rule cannot verify it.
+**Proven offline only:** order independence of multi-photo evidence; all M2 rules and the restart / idempotency /
+accounting guarantees with them in place (see [docs/M2_ACCEPTANCE.md](docs/M2_ACCEPTANCE.md)).
 
-**Known weaknesses to fix next** (details in [docs/PROGRESS.md](docs/PROGRESS.md)):
-1. (Fixed 2026-10-31) Clear plug on a blue cable: a linked cable's colour now supports a colourless plug.
-2. (Fixed 2026-10-31) Guidance targeting an absent device: gaps on the device in the latest photo come first.
-3. Similar colour words ("beige" vs "off-white") could produce a false VIOLATED.
-4. Muse's port-level boxes are imprecise (about one port width off); device-level boxes are good.
-5. One photo takes 25–48 s at default reasoning, 6–29 s with `reasoning_effort=low`.
+**Known limitations:**
+1. No live guidance validation since the M2 planner and guard changes (mocked tests only).
+2. Adjacent same-colour cables cannot be told apart by SAM port grounding (D32); Muse port boxes are about half to
+   one port width off.
+3. Cross-photo physical identity of a device is not independently proven (disclosed in every report).
+4. Not deployable publicly: no authentication, no spending cap across inspections, synchronous long captures (D24).
+5. Stored inspections from an older engine show `engine_changed` / `policy_drift`; verdicts are never rewritten.
+6. On the user's setup the plug hides the target labels, so the strict rule cannot verify it from real photos.
+7. One photo takes 25–48 s at default reasoning, 6–29 s with `reasoning_effort=low`.
 
 ---
 
@@ -98,8 +100,10 @@ proofcam/
 ├── docs/
 │   ├── SPEC.md              ← product requirements and acceptance criteria per milestone
 │   ├── META_API_FACTS.md    ← what the Meta API does, marked DOC / SRC / LIVE / UNVERIFIED
-│   ├── DECISIONS.md         ← technical decisions D1–D16 and why
-│   └── PROGRESS.md          ← dated log: what was done, test results, findings, blockers
+│   ├── DECISIONS.md         ← technical decisions D1–D33 and why
+│   ├── PROGRESS.md          ← dated log: what was done, test results, findings, blockers
+│   ├── M2_ACCEPTANCE.md     ← Milestone 2 offline acceptance report
+│   └── FRONTEND_HANDOFF.md  ← HTTP API contract for the M3 camera app
 │
 ├── data/
 │   ├── images/              ← your photos (git-ignored except README.md)
@@ -191,6 +195,9 @@ calls). `observe_recorded()` replays a stored observation without perception cal
 | [overlay.py](backend/proofcam/overlay.py) | Pictures | `render_overlay()`: SAM masks filled + solid boxes; Muse boxes dashed; legend on the image |
 | [report.py](backend/proofcam/report.py) | Output files | `write_report()` → `report.json`, `report.md`, `trace.jsonl`, images, overlays |
 | [cli.py](backend/proofcam/cli.py) | Command line | `python -m proofcam.cli --spec … --image … [--image …] [--interactive]` |
+| [store.py](backend/proofcam/store.py) | SQLite persistence | Inspections, photos/overlays as BLOBs, append-only observations/requests/trace, leases + heartbeats, idempotent submissions, model-call reservations before every HTTP attempt, `engine_version` |
+| [service.py](backend/proofcam/service.py) | Service layer | `InspectionService`: rebuilds the agent from SQLite per request, runs a capture under a lease, commits one step per transaction |
+| [api.py](backend/proofcam/api.py) / [api_models.py](backend/proofcam/api_models.py) | HTTP API | FastAPI routes and wire schemas; contract in [docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md) |
 
 ### `backend/tests/` — tests
 
@@ -204,6 +211,11 @@ calls). `observe_recorded()` replays a stored observation without perception cal
 | [test_evidence_fusion.py](backend/tests/test_evidence_fusion.py) | Synthetic: complementary photos + separate cable trace → VERIFIED in all orders; every way a trace or a layout inference must be refused; inference never a violation |
 | [test_sequences.py](backend/tests/test_sequences.py) | Offline replay of recorded live observations (m1–m7) through one agent: order independence, negatives, declared change, duplicates, unusable photos, budget, report |
 | [fixtures/my_setup_live_observations.json](backend/tests/fixtures/my_setup_live_observations.json) | Recorded Muse/SAM **text output** from the live m1–m7 run (no photos); replayed as `source="replay"` |
+| [test_persistence.py](backend/tests/test_persistence.py) · [test_store.py](backend/tests/test_store.py) | Snapshot/restore equals an uninterrupted run; SQLite store, leases, idempotency, append-only checks |
+| [test_service.py](backend/tests/test_service.py) · [test_api.py](backend/tests/test_api.py) · [test_acceptance.py](backend/tests/test_acceptance.py) | Service and HTTP behaviour; end-to-end reliability with restarts, retries, process kill, accounting invariants |
+| [test_verdict_correctness.py](backend/tests/test_verdict_correctness.py) | M2.1: colour ambiguity, conflicting traces, ambiguous devices, policy drift flagged not rewritten |
+| [test_guidance.py](backend/tests/test_guidance.py) | M2.2: unread-label guard, off-target photo accounting, contradiction review stop |
+| [test_grounding_geometry.py](backend/tests/test_grounding_geometry.py) | M2.3: containment for antenna masks and its guards; the documented port-grounding limit |
 | [test_live.py](backend/tests/test_live.py) | **Real API** (skipped by default). Asserts only safety properties, never specific verdicts |
 
 ### `backend/experiments/` — real-API scripts
@@ -213,6 +225,8 @@ calls). `observe_recorded()` replays a stored observation without perception cal
 | [probe_api.py](backend/experiments/probe_api.py) | 4 quick real calls (ping, structured text, structured + image, SAM) to confirm the API works |
 | [run_scenarios.py](backend/experiments/run_scenarios.py) | Runs each of the 5 reference photos as a **separate** inspection with its own spec; writes `runs/scenarios-<time>/` |
 | [run_sequences.py](backend/experiments/run_sequences.py) | Multi-photo order experiment on `my_setup.json`: positive (m2,m3,m7 in 3 orders) and negative groups, strict and layout variants. Offline replay by default; `--mode live` perceives each photo once, then replays every order with the live planner. Writes `runs/sequences-<mode>-<time>/` |
+| [api_smoke.py](backend/experiments/api_smoke.py) | One live capture through the HTTP API with a hard call cap; restart and read-back checks (M1 smoke test) |
+| [grounding_offline.py](backend/experiments/grounding_offline.py) | No API calls: re-decodes recorded SAM output to measure device/port grounding rules (M2.3) |
 
 ---
 
@@ -368,8 +382,11 @@ All commands from `backend/` (Windows paths shown).
 ```powershell
 # One-time setup
 py -3.12 -m venv .venv
-.venv\Scripts\python.exe -m pip install pydantic httpx pillow python-dotenv meta-sam-parser numpy pytest
+.venv\Scripts\python.exe -m pip install pydantic httpx pillow python-dotenv meta-sam-parser numpy pytest fastapi uvicorn python-multipart
 # then put MODEL_API_KEY=... in the repo-root .env
+
+# HTTP API (one worker; every /captures upload makes paid calls; no authentication, keep it local)
+.venv\Scripts\python.exe -m uvicorn proofcam.api:app_from_env --factory --workers 1 --port 8000
 
 # Unit tests (no network, free)
 .venv\Scripts\python.exe -m pytest -q
@@ -415,11 +432,11 @@ The cheaper `-contributor` models let Meta train on your data, so they are not u
 
 ## 11. What's next
 
-1. With approval: run `experiments/run_sequences.py --mode live` (the missing live multi-photo proof).
-2. Decide whether `my_setup.json` should opt in to `label_or_layout`, and capture a photo that can establish
-   cable identity (a wide shot where both port rows' labels are legible, or the cable visibly leaving LAN 1).
-3. Colour-word tolerance (beige/off-white), SAM switch concept (0 matches for "network switch"), cumulative spend cap.
-4. Then Milestone 1: FastAPI + SQLite, so the web app has something to call.
+1. **Milestone 3:** the camera web app against the existing API ([docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md)).
+2. **Before any public deployment:** authentication, a spending cap across inspections, request-timeout handling (D24).
+3. With approval, when time allows: a capped live check of the M2 guidance wording; the SAM port/plug concept
+   measurement (PROGRESS 2026-11-03); `run_sequences.py --mode live` on real photos.
+4. Milestone 4 evaluation, Milestone 5 deployment/demo/submission.
 
 ---
 
@@ -432,6 +449,8 @@ The cheaper `-contributor` models let Meta train on your data, so they are not u
 | [docs/META_API_FACTS.md](docs/META_API_FACTS.md) | Exactly how the Meta API behaves, with each fact's source |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Why things are built the way they are |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | Dated log of work, test results, live findings |
+| [docs/M2_ACCEPTANCE.md](docs/M2_ACCEPTANCE.md) | Milestone 2 offline acceptance: criteria, test evidence, unresolved risks |
+| [docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md) | Exact HTTP API contract for the camera app |
 | [CLAUDE.md](CLAUDE.md) | Rules Claude Code follows in this repo |
 
 ## Glossary

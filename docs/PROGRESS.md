@@ -1,5 +1,137 @@
 # Progress log
 
+## 2026-11-04 — M3.3 UI/UX redesign (frontend only; no paid calls; not committed)
+
+Visual and UX refinement of every screen. No change to the API client, `useInspection` (capture, retry, idempotency,
+`responding_to`, stale guidance), the camera lifecycle, the service worker, or anything in the backend.
+
+- **Design system:** colour, font and radius tokens in `src/index.css` (`@theme`):
+  - warm-neutral near-black canvas; one teal accent for actions;
+  - verdict colours reserved: green VERIFIED, red VIOLATED, sand INSUFFICIENT_EVIDENCE; violet for mock mode;
+  - one global `:focus-visible` ring; reduced-motion override; `phone-landscape` variant.
+- **Primitives:** Button (primary, secondary, ghost, danger), Card, CardTitle, Badge, Callout and Logo.
+- **Screens:**
+  - sticky app bar with a live/mock indicator, which stays the single `role="note"`;
+  - access gate, landing ("Visual proof for physical work.") and the disconnected state with Try again;
+  - viewfinder frame with corner marks and a thumb-zone control bar (upload, round shutter, switch camera); the staged-photo and analysing states share the same frame;
+  - analysing state shows elapsed time only, with no invented progress;
+  - status-led verdict panels with an observed/unproven checklist and evidence/explanation disclosures;
+  - guidance card, review card, stop card and a bottom-sheet change dialog (Esc closes it);
+  - photo viewer and history, and the audit-style report.
+- **Checks:** headless Edge with mobile emulation at 375×667, 390×844, 430×932 and 844×390, on synthetic images against the mock server: no horizontal overflow.
+- **Tests:** frontend 31/31; `tsc` clean; oxlint shows the same 3 reviewed warnings; build OK; backend 372 passed.
+
+## 2026-11-03 — Milestone 3.3: live-inference readiness (no paid calls; not committed)
+
+The user opened M3.2 on the iPhone 16 over Tailscale Serve (tailnet only; Funnel off; serve → 127.0.0.1:4173).
+Change of plan: the user does **not** own the router + switch shown in the AI-generated reference images. The real
+equipment is a wall-mounted router with no switch. `my_setup` is therefore used as a deliberately unfulfilled work
+order: expected INSUFFICIENT_EVIDENCE, or VIOLATED only for a clearly empty or wrong-colour, legibly labelled LAN 1
+on a router matching the spec description. VERIFIED is impossible by construction.
+
+Audit: model IDs, SAM ID and base URL in `.env` equal the documented values; key present (not printed);
+`PROOFCAM_ACCESS_CODE` is not in `.env` (the phone session used a terminal variable). No backend or frontend
+process was running; ports 8000/4173 were free. Added `scripts/start-live.ps1`: 127.0.0.1 only, refuses a busy port
+and a missing or short code, separate DB `var/live-m33.db`, global cap 20, reasoning `low`, restores the
+environment on exit. Zero-call probe on port 8010 with a scratch DB: `model_source=live`, 401 without a session
+(also with a Tailscale header), cap 20/20 after login, 0 model calls. New test
+`test_m33_live_cap_admits_an_overview_and_a_close_up`. Backend **372 passed**, 1 deselected. Frontend unchanged
+(`dist` current). Runbook, expected verdicts, stop conditions, second-spec requirements and demo checklist:
+`docs/LIVE_TEST_M33.md`. Awaiting approval for the first paid capture (≈ 8–12 calls, ≈ $0.06–0.12, hard
+ceiling 20 calls).
+
+## 2026-11-03 — Milestone 3.2: iPhone readiness, access boundary, spending cap (no paid calls; not committed)
+
+**Not yet tested on an iPhone.** Tailscale is not installed; installing it, signing in, installing the iOS app and
+enabling MagicDNS + HTTPS certificates need the user's approval (docs/IPHONE_SETUP.md step 0). Researched the
+Tailscale docs (Serve, HTTPS certificates); `winget show Tailscale.Tailscale` → 1.104.5 (not installed).
+
+Backend (D35): access code → HttpOnly session cookie (`POST/DELETE /api/session`, open `GET /api/access`), middleware
+on every non-open route, wrong-code throttle; `local_only` guard without a code (403 for non-loopback client, non-local
+Host, proxy/Tailscale headers); server-wide model-call cap (`PROOFCAM_GLOBAL_CALL_LIMIT`, default 50) with a pre-check
+(429 `spend_cap_reached`, nothing sent, inspection untouched) and an in-transaction backstop in
+`Store.reserve_model_call`; `app_from_env` reads both; mock server gets `--access-code` and the same guard. Bug found
+and fixed: a call refused at its first reservation was counted as started (stored counter over-count).
+No policy/grounding/agent change; engine version unchanged.
+
+Frontend: access-code screen (code never stored; 401 anywhere → back to it); Live (amber, calls left) vs Mock
+(purple) banner; stale guidance after an installation change hidden + "new configuration" prompt, next photo sent
+without `responding_to`; per-verdict evidence list (support / conflicts / not counted, SAM notes, jump to photo);
+Markdown report rendered (react-markdown + remark-gfm, no raw HTML); camera: rear preferred (4:3), stops on
+background/interruption with a resume prompt, iOS-specific permission help; uploads re-encoded client-side to JPEG
+≤ 2400 px (HEIC from the iPhone library, EXIF/GPS stripped; falls back to the original if undecodable);
+`spend_cap_reached` keeps the photo for a later manual retry; safe areas (`viewport-fit=cover`, insets), `dvh`, sticky
+thumb-reachable capture bar; PWA: manifest, icons (192/512/maskable/apple-touch 180), service worker for the app
+shell only (never `/api`), registered in production builds; Vite `allowedHosts: ['.ts.net']`, preview proxy.
+
+Tests: backend `pytest -q` → **371 passed** (351 + 20 in `tests/test_access.py`), 1 deselected. Frontend `npm test`
+→ **31 passed** (17 + 14 in `src/phone.test.tsx`: access code flow, session expiry, live/mock labels, stale guidance
+helper + no `responding_to`, evidence + jump to photo, rendered report, spend cap, rear camera + interruption,
+background release, HEIC re-encode, decode fallback, review regression). Two existing frontend test fakes updated for
+the new calls (`/api/access` at start-up; `getVideoTracks`). `tsc -b` clean, `vite build` OK, oxlint 3 reviewed warnings.
+
+Local end-to-end (production build via `vite preview` → mock server with an access code, port 8010): PWA assets served;
+`*.ts.net` Host accepted; 401 before login; wrong code 401; login cookie HttpOnly/SameSite=Strict (HMAC, not the code);
+create + capture with a Tailscale identity header after login; photo 401 without cookie. Note: a mock server on port
+8000 and a Vite dev server on 5173 started by the user at 19:49–19:50 were running (old code); left untouched.
+
+## 2026-11-03 — Milestone 3.1: mobile-first camera web app (no paid calls; not committed)
+
+Branch `m3-camera-frontend` (from `6755b4f`; carries the uncommitted M2.4 docs). Node.js v26.13.0 / npm 11.20.0
+installed with winget (none was present). New `frontend/`: React 19, TypeScript 7, Vite 8, Tailwind 4, lucide-react,
+hand-written shadcn-style primitives; Vitest 5 + Testing Library. New `backend/experiments/dev_mock_server.py`: the
+real FastAPI app/service/store/policy with the tests' FakeMeta transport (scripted scenarios, SAM masks scaled to the
+uploaded photo, every call `source="mock"`, health `model_source: "mock"`); also exports frontend fixtures recorded
+from the real API. No change to backend runtime code, policy, thresholds or tests.
+
+Implemented (D34): landing → create `my_setup` inspection; camera (MediaDevices, rear preferred, switch if several
+cameras, opt-in, stopped after capture/when hidden/unmount, permission and insecure-context messages) + upload
+fallback; confirm step before the paid analysis; capture with one Idempotency-Key per photo and `responding_to`;
+processing state with elapsed time; verdict per requirement exactly as returned, missing evidence, assumptions;
+guidance (instruction, camera action, success criteria); photo viewer with stored overlay toggle; history thumbnails
+(superseded/unusable badges); review card for `review_required` / `contradiction_requires_review`; installation change
+with explicit confirmation + reason; stop reasons; saved Markdown report + JSON link; resume after refresh (localStorage
++ `?inspection=`), including waiting for a capture still processing; engine-drift banner; mock-models banner.
+Retry protocol: no HTTP response or 409 `inspection_busy` / 500 → poll saved state until not busy; if a step was
+committed meanwhile, resend the same key (stored response, no new calls), else ask the user (retry same key / discard);
+`stale_guidance` / `inspection_stopped` → discard photo, refresh state; double clicks guarded synchronously.
+
+Tests: frontend `npm test` → **17 passed** (create, double-click create, resume, resume while busy, 404 resume,
+upload→guidance→overlay→VERIFIED with `responding_to` and distinct keys, double-click analyse = 1 request, stale
+guidance, dropped connection → state read → same-key replay, failure without commit → manual retry same key then new
+key for a new photo, busy → poll → replay, review card without camera guidance + confirmed change, cancel sends
+nothing, report, camera permission denied, stream stopped after capture, insecure context). `tsc -b` clean;
+`vite build` OK; oxlint 2 warnings (reviewed, intentional). Backend `pytest -q` → **351 passed**, 1 deselected.
+
+Local validation through the Vite proxy: real backend (`app_from_env` with a dummy key and an unroutable Meta URL,
+scratch DB) — health, create `my_setup`, get, Markdown report, 404 shape, 0 model calls; mock server — capture →
+INSUFFICIENT + `nv1`, same-key replay `replayed: true`, 409 `stale_guidance`, second capture → VERIFIED, overlay JPEG
+served and visually aligned (1280×960). Not done: viewing the UI in a real browser (no browser automation here),
+real phone, any live Meta call.
+
+Findings (not changed): after `installation_changed`, `next_view` still returns the last request of the previous
+configuration (backend returns `requests[-1]`); the dev proxy is HTTP only, so phone cameras need HTTPS (M3.2).
+
+## 2026-11-03 — Milestone 2.4: offline acceptance and Milestone 2 close-out (no paid calls; not committed)
+
+Documentation only; no code, policy, threshold or test change. HEAD `6755b4f` (m2.3), branch `m2-active-agent`.
+
+Tests: `pytest -q` → **351 passed**, 1 live deselected (random seed, 162 s); `PYTHONHASHSEED=0 pytest -q -rA` →
+351 passed (59 s). Identical to the M2.3 baseline. M2.1–M2.3 checked together against 10 criteria via existing
+tests (colour ambiguity, conflicting traces, device ambiguity, contradiction review, off-target accounting, unread-label
+guard on mocked guidance, antenna containment, documented port-grounding limit, restart/idempotency/accounting,
+historical drift flagged not rewritten): **all PASS** — `docs/M2_ACCEPTANCE.md`.
+
+New: `docs/M2_ACCEPTANCE.md` (acceptance report + unresolved risks R1–R8), `docs/FRONTEND_HANDOFF.md` (exact API
+contract for M3: routes, shapes, stop reasons, `review_required`, photos/overlays, safe retries). Updated: README
+(status, git state, repository map, next steps), GUIDE (status, maps, run commands, next steps), DECISIONS D33,
+META_API_FACTS (open questions, recorded live facts from M1/M2.3). Finding while writing the handoff (not changed):
+the API has no CORS configuration, so the app must be same-origin or use a dev proxy.
+
+**Milestone 2: complete (offline).** Not done, by decision (D33): live validation of the M2 guidance wording, the SAM
+port/plug concept measurement, authentication / global spending cap / timeout handling (needed before M5).
+Live spend to date unchanged: ≈ $0.57 (no calls since the 2026-11-02 smoke test).
+
 ## 2026-11-03 — Milestone 2.3: grounding geometry (offline; no paid calls; not committed)
 
 Implemented: device corroboration by IoU **or containment** (D31) in `grounding.py`; report-level only. Port grounding

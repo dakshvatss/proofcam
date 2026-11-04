@@ -140,8 +140,13 @@ class MetaClient:
         attempt = 0
         while True:
             attempt += 1
-            ticket = (self.accounting.before_request(name, attempt, image_id)
-                      if self.accounting is not None else None)
+            try:
+                ticket = (self.accounting.before_request(name, attempt, image_id)
+                          if self.accounting is not None else None)
+            except BudgetExhausted:
+                if attempt == 1:  # refused before anything was sent: this call never started
+                    self.calls_started -= 1
+                raise
             try:
                 result = await fn()
             except (httpx.TimeoutException, httpx.TransportError) as e:

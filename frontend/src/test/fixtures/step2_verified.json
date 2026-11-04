@@ -1,0 +1,101 @@
+{
+ "inspection_id": "insp_822cd58814f04a6397c05b37177d76ba",
+ "seq": 2,
+ "image_id": "img_5bba2c69bbbd",
+ "duplicate_of": null,
+ "notes": [],
+ "status": "stopped",
+ "stop_reason": "all_requirements_resolved",
+ "assessments": [
+  {
+   "requirement_id": "R1",
+   "status": "VERIFIED",
+   "explanation": "Both endpoints observed with identified ports, clear insertion and matching colour, SAM-grounded (Router LAN 1 from photo 2; Switch 3 from photo 2); cable identity traced in photo 2.",
+   "endpoints": [
+    {
+     "index": 0,
+     "device_id": "router",
+     "port_label": "LAN 1",
+     "state": "established",
+     "support": [
+      {
+       "seq": 2,
+       "image_id": "img_5bba2c69bbbd",
+       "port_ref": "P1",
+       "device_ref": "D1",
+       "claim": "Router port P1 'LAN 1' [legible] (cable_inserted, plug=blue, visibility=clear)",
+       "grounding": {
+        "concept": "blue ethernet cable",
+        "sam_object_id": "0",
+        "iou": null,
+        "overlap_px": 4392,
+        "corroborated": true,
+        "note": "SAM 'blue ethernet cable' mask covers 4392px of the port region"
+       },
+       "port_basis": "direct_label"
+      }
+     ],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": null
+    },
+    {
+     "index": 1,
+     "device_id": "switch",
+     "port_label": "3",
+     "state": "established",
+     "support": [
+      {
+       "seq": 2,
+       "image_id": "img_5bba2c69bbbd",
+       "port_ref": "P2",
+       "device_ref": "D2",
+       "claim": "Switch port P2 '3' [legible] (cable_inserted, plug=blue, visibility=clear)",
+       "grounding": {
+        "concept": "blue ethernet cable",
+        "sam_object_id": "0",
+        "iou": null,
+        "overlap_px": 5185,
+        "corroborated": true,
+        "note": "SAM 'blue ethernet cable' mask covers 5185px of the port region"
+       },
+       "port_basis": "direct_label"
+      }
+     ],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": null
+    }
+   ],
+   "identity_state": "established",
+   "identity_evidence": [
+    {
+     "seq": 2,
+     "image_id": "img_5bba2c69bbbd",
+     "port_ref": null,
+     "device_ref": null,
+     "claim": "blue cable C1 traced continuously between Router LAN 1 = P1 (direct_label) and Switch 3 = P2 (direct_label), SAM-grounded at both ports",
+     "grounding": null,
+     "port_basis": "direct_label"
+    }
+   ],
+   "gaps": [],
+   "contradictions": [],
+   "assumptions": []
+  }
+ ],
+ "next_view": null,
+ "review_required": [],
+ "version": 2,
+ "usage": {
+  "model_calls": 9,
+  "model_call_limit": 40,
+  "remaining": 31,
+  "calls_by_status": {
+   "ok": 9
+  },
+  "estimated_cost_usd": 0.02445,
+  "cost_basis": "list prices applied to committed trace events; excludes calls with unknown outcome"
+ },
+ "replayed": false
+}

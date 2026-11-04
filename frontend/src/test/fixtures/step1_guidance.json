@@ -1,0 +1,135 @@
+{
+ "inspection_id": "insp_822cd58814f04a6397c05b37177d76ba",
+ "seq": 1,
+ "image_id": "img_0f02361ef13a",
+ "duplicate_of": null,
+ "notes": [],
+ "status": "open",
+ "stop_reason": null,
+ "assessments": [
+  {
+   "requirement_id": "R1",
+   "status": "INSUFFICIENT_EVIDENCE",
+   "explanation": "Not established: The Router's connection ports have not been visible.; The Switch's connection ports have not been visible.",
+   "endpoints": [
+    {
+     "index": 0,
+     "device_id": "router",
+     "port_label": "LAN 1",
+     "state": "unknown",
+     "support": [],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": {
+      "requirement_id": "R1",
+      "code": "PORTS_NOT_VISIBLE",
+      "endpoint_index": 0,
+      "target": "Router port LAN 1",
+      "missing_fact": "The Router's connection ports have not been visible.",
+      "context": {
+       "device_id": "router",
+       "device": "Router",
+       "device_description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
+       "port_label": "LAN 1",
+       "sides_seen": [
+        "front"
+       ]
+      }
+     }
+    },
+    {
+     "index": 1,
+     "device_id": "switch",
+     "port_label": "3",
+     "state": "unknown",
+     "support": [],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": {
+      "requirement_id": "R1",
+      "code": "PORTS_NOT_VISIBLE",
+      "endpoint_index": 1,
+      "target": "Switch port 3",
+      "missing_fact": "The Switch's connection ports have not been visible.",
+      "context": {
+       "device_id": "switch",
+       "device": "Switch",
+       "device_description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
+       "port_label": "3",
+       "sides_seen": [
+        "front"
+       ]
+      }
+     }
+    }
+   ],
+   "identity_state": "unknown",
+   "identity_evidence": [],
+   "gaps": [
+    {
+     "requirement_id": "R1",
+     "code": "PORTS_NOT_VISIBLE",
+     "endpoint_index": 0,
+     "target": "Router port LAN 1",
+     "missing_fact": "The Router's connection ports have not been visible.",
+     "context": {
+      "device_id": "router",
+      "device": "Router",
+      "device_description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
+      "port_label": "LAN 1",
+      "sides_seen": [
+       "front"
+      ]
+     }
+    },
+    {
+     "requirement_id": "R1",
+     "code": "PORTS_NOT_VISIBLE",
+     "endpoint_index": 1,
+     "target": "Switch port 3",
+     "missing_fact": "The Switch's connection ports have not been visible.",
+     "context": {
+      "device_id": "switch",
+      "device": "Switch",
+      "device_description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
+      "port_label": "3",
+      "sides_seen": [
+       "front"
+      ]
+     }
+    }
+   ],
+   "contradictions": [],
+   "assumptions": []
+  }
+ ],
+ "next_view": {
+  "id": "nv1",
+  "requirement_id": "R1",
+  "gap_code": "PORTS_NOT_VISIBLE",
+  "missing_fact": "The Router's connection ports have not been visible.",
+  "target_region": "router rear ports",
+  "camera_action": "move_to_rear",
+  "instruction": "[MOCK] Walk around to the back of the router and switch and frame both port rows so the printed labels can be read.",
+  "rationale": "ports not visible",
+  "success_criteria": "The printed label (if any) of the port expected to be LAN 1 is readable, with the plug in it.",
+  "planner": "muse",
+  "based_on_image_id": "img_0f02361ef13a",
+  "after_image_id": "img_0f02361ef13a",
+  "gap_key": "R1:PORTS_NOT_VISIBLE:0",
+  "planner_error": "rewrote success_criteria that presented the expected label as visible text"
+ },
+ "review_required": [],
+ "version": 1,
+ "usage": {
+  "model_calls": 5,
+  "model_call_limit": 40,
+  "remaining": 35,
+  "calls_by_status": {
+   "ok": 5
+  },
+  "estimated_cost_usd": 0.0138,
+  "cost_basis": "list prices applied to committed trace events; excludes calls with unknown outcome"
+ },
+ "replayed": false
+}

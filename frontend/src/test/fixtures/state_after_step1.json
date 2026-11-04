@@ -1,0 +1,250 @@
+{
+ "id": "insp_822cd58814f04a6397c05b37177d76ba",
+ "spec_id": "my_setup",
+ "title": "TP-Link router LAN 1 to NETGEAR switch port 3 (blue Ethernet cable)",
+ "status": "open",
+ "stop_reason": null,
+ "epoch": 0,
+ "version": 1,
+ "engine_version": "0.0.1+d2a953f9780f",
+ "engine_changed": false,
+ "policy_drift": [],
+ "busy": false,
+ "spec": {
+  "id": "my_setup_v1",
+  "title": "TP-Link router LAN 1 to NETGEAR switch port 3 (blue Ethernet cable)",
+  "devices": [
+   {
+    "id": "router",
+    "name": "Router",
+    "description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
+    "sam_concept": "router",
+    "port_rows": [
+     [
+      "LAN 1",
+      "LAN 2",
+      "LAN 3",
+      "LAN 4"
+     ]
+    ]
+   },
+   {
+    "id": "switch",
+    "name": "Switch",
+    "description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
+    "sam_concept": "network switch",
+    "port_rows": [
+     [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+     ]
+    ]
+   }
+  ],
+  "requirements": [
+   {
+    "id": "R1",
+    "kind": "connection",
+    "text": "The blue Ethernet cable must connect Router LAN 1 to Switch Port 3.",
+    "cable_color": "blue",
+    "cable_type": "ethernet cable",
+    "endpoints": [
+     {
+      "device_id": "router",
+      "port_label": "LAN 1",
+      "label_aliases": []
+     },
+     {
+      "device_id": "switch",
+      "port_label": "3",
+      "label_aliases": []
+     }
+    ],
+    "cable_identity": "require_trace",
+    "sam_concept": null,
+    "port_identity": "label_only"
+   }
+  ]
+ },
+ "photos": [
+  {
+   "seq": 1,
+   "image_id": "img_0f02361ef13a",
+   "source_name": "front.jpg",
+   "width": 800,
+   "height": 600,
+   "epoch": 0,
+   "superseded": false,
+   "usable": true,
+   "responding_to": null,
+   "photo_url": "/api/inspections/insp_822cd58814f04a6397c05b37177d76ba/photos/img_0f02361ef13a",
+   "overlay_url": "/api/inspections/insp_822cd58814f04a6397c05b37177d76ba/overlays/img_0f02361ef13a"
+  }
+ ],
+ "assessments": [
+  {
+   "requirement_id": "R1",
+   "status": "INSUFFICIENT_EVIDENCE",
+   "explanation": "Not established: The Router's connection ports have not been visible.; The Switch's connection ports have not been visible.",
+   "endpoints": [
+    {
+     "index": 0,
+     "device_id": "router",
+     "port_label": "LAN 1",
+     "state": "unknown",
+     "support": [],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": {
+      "requirement_id": "R1",
+      "code": "PORTS_NOT_VISIBLE",
+      "endpoint_index": 0,
+      "target": "Router port LAN 1",
+      "missing_fact": "The Router's connection ports have not been visible.",
+      "context": {
+       "device_id": "router",
+       "device": "Router",
+       "device_description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
+       "port_label": "LAN 1",
+       "sides_seen": [
+        "front"
+       ]
+      }
+     }
+    },
+    {
+     "index": 1,
+     "device_id": "switch",
+     "port_label": "3",
+     "state": "unknown",
+     "support": [],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": {
+      "requirement_id": "R1",
+      "code": "PORTS_NOT_VISIBLE",
+      "endpoint_index": 1,
+      "target": "Switch port 3",
+      "missing_fact": "The Switch's connection ports have not been visible.",
+      "context": {
+       "device_id": "switch",
+       "device": "Switch",
+       "device_description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
+       "port_label": "3",
+       "sides_seen": [
+        "front"
+       ]
+      }
+     }
+    }
+   ],
+   "identity_state": "unknown",
+   "identity_evidence": [],
+   "gaps": [
+    {
+     "requirement_id": "R1",
+     "code": "PORTS_NOT_VISIBLE",
+     "endpoint_index": 0,
+     "target": "Router port LAN 1",
+     "missing_fact": "The Router's connection ports have not been visible.",
+     "context": {
+      "device_id": "router",
+      "device": "Router",
+      "device_description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
+      "port_label": "LAN 1",
+      "sides_seen": [
+       "front"
+      ]
+     }
+    },
+    {
+     "requirement_id": "R1",
+     "code": "PORTS_NOT_VISIBLE",
+     "endpoint_index": 1,
+     "target": "Switch port 3",
+     "missing_fact": "The Switch's connection ports have not been visible.",
+     "context": {
+      "device_id": "switch",
+      "device": "Switch",
+      "device_description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
+      "port_label": "3",
+      "sides_seen": [
+       "front"
+      ]
+     }
+    }
+   ],
+   "contradictions": [],
+   "assumptions": []
+  }
+ ],
+ "next_view": {
+  "id": "nv1",
+  "requirement_id": "R1",
+  "gap_code": "PORTS_NOT_VISIBLE",
+  "missing_fact": "The Router's connection ports have not been visible.",
+  "target_region": "router rear ports",
+  "camera_action": "move_to_rear",
+  "instruction": "[MOCK] Walk around to the back of the router and switch and frame both port rows so the printed labels can be read.",
+  "rationale": "ports not visible",
+  "success_criteria": "The printed label (if any) of the port expected to be LAN 1 is readable, with the plug in it.",
+  "planner": "muse",
+  "based_on_image_id": "img_0f02361ef13a",
+  "after_image_id": "img_0f02361ef13a",
+  "gap_key": "R1:PORTS_NOT_VISIBLE:0",
+  "planner_error": "rewrote success_criteria that presented the expected label as visible text"
+ },
+ "review_required": [],
+ "exhausted_gaps": {},
+ "history": [
+  {
+   "epoch": 0,
+   "event": "photo",
+   "image_id": "img_0f02361ef13a",
+   "next_view": "nv1",
+   "notes": [],
+   "requirements": [
+    {
+     "endpoints": [
+      {
+       "device_id": "router",
+       "port_label": "LAN 1",
+       "state": "unknown",
+       "support_photos": []
+      },
+      {
+       "device_id": "switch",
+       "port_label": "3",
+       "state": "unknown",
+       "support_photos": []
+      }
+     ],
+     "gaps": [
+      "R1:PORTS_NOT_VISIBLE:0",
+      "R1:PORTS_NOT_VISIBLE:1"
+     ],
+     "id": "R1",
+     "identity_state": "unknown",
+     "status": "INSUFFICIENT_EVIDENCE"
+    }
+   ],
+   "seq": 1,
+   "source_name": "front.jpg",
+   "stop_reason": null
+  }
+ ],
+ "usage": {
+  "model_calls": 5,
+  "model_call_limit": 40,
+  "remaining": 35,
+  "calls_by_status": {
+   "ok": 5
+  },
+  "estimated_cost_usd": 0.0138,
+  "cost_basis": "list prices applied to committed trace events; excludes calls with unknown outcome"
+ },
+ "disclaimer": "ProofCam verifies visually observable conditions only. It does not certify electrical safety, hidden connectivity, operational performance, or regulatory compliance."
+}

@@ -1,0 +1,319 @@
+{
+ "id": "insp_2c80b115041048d390520445daaeb714",
+ "spec_id": "my_setup",
+ "title": "TP-Link router LAN 1 to NETGEAR switch port 3 (blue Ethernet cable)",
+ "status": "stopped",
+ "stop_reason": "contradiction_requires_review",
+ "epoch": 0,
+ "version": 2,
+ "engine_version": "0.0.1+d2a953f9780f",
+ "engine_changed": false,
+ "policy_drift": [],
+ "busy": false,
+ "spec": {
+  "id": "my_setup_v1",
+  "title": "TP-Link router LAN 1 to NETGEAR switch port 3 (blue Ethernet cable)",
+  "devices": [
+   {
+    "id": "router",
+    "name": "Router",
+    "description": "Black TP-Link Wi-Fi router: glossy black top with a white 'tp-link' logo, two black external antennas at the rear corners, a row of status LEDs along the front edge. Rear panel, left to right: round DC power jack, 'WPS/Reset' button, a silver-framed row of four Ethernet ports (labels 'LAN 2', 'LAN 3', 'LAN 4' printed under the right three), a blue USB port labelled 'USB', and a round 'Power' button.",
+    "sam_concept": "router",
+    "port_rows": [
+     [
+      "LAN 1",
+      "LAN 2",
+      "LAN 3",
+      "LAN 4"
+     ]
+    ]
+   },
+   {
+    "id": "switch",
+    "name": "Switch",
+    "description": "Black NETGEAR desktop Ethernet switch: flat rectangular box with a white 'NETGEAR' wordmark on top. Front panel: green LED labelled 'Power' on the left, then a silver-framed row of five Ethernet ports numbered '1' to '5' underneath, each port with small LEDs at its upper corners.",
+    "sam_concept": "network switch",
+    "port_rows": [
+     [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+     ]
+    ]
+   }
+  ],
+  "requirements": [
+   {
+    "id": "R1",
+    "kind": "connection",
+    "text": "The blue Ethernet cable must connect Router LAN 1 to Switch Port 3.",
+    "cable_color": "blue",
+    "cable_type": "ethernet cable",
+    "endpoints": [
+     {
+      "device_id": "router",
+      "port_label": "LAN 1",
+      "label_aliases": []
+     },
+     {
+      "device_id": "switch",
+      "port_label": "3",
+      "label_aliases": []
+     }
+    ],
+    "cable_identity": "require_trace",
+    "sam_concept": null,
+    "port_identity": "label_only"
+   }
+  ]
+ },
+ "photos": [
+  {
+   "seq": 1,
+   "image_id": "img_b3ab256308d5",
+   "source_name": "to_port_4.jpg",
+   "width": 800,
+   "height": 600,
+   "epoch": 0,
+   "superseded": false,
+   "usable": true,
+   "responding_to": null,
+   "photo_url": "/api/inspections/insp_2c80b115041048d390520445daaeb714/photos/img_b3ab256308d5",
+   "overlay_url": "/api/inspections/insp_2c80b115041048d390520445daaeb714/overlays/img_b3ab256308d5"
+  },
+  {
+   "seq": 2,
+   "image_id": "img_b2c74ff58fdc",
+   "source_name": "to_port_3.jpg",
+   "width": 800,
+   "height": 600,
+   "epoch": 0,
+   "superseded": false,
+   "usable": true,
+   "responding_to": "nv1",
+   "photo_url": "/api/inspections/insp_2c80b115041048d390520445daaeb714/photos/img_b2c74ff58fdc",
+   "overlay_url": "/api/inspections/insp_2c80b115041048d390520445daaeb714/overlays/img_b2c74ff58fdc"
+  }
+ ],
+ "assessments": [
+  {
+   "requirement_id": "R1",
+   "status": "INSUFFICIENT_EVIDENCE",
+   "explanation": "Not established: Photos disagree about where the blue cable runs: photo 1, photo 2 trace it to different ports. An unchanged installation has one cable per plug, so this conflict cannot be resolved by choosing one photo. If the equipment was physically changed between photos, the change must be declared so earlier photos stop counting.",
+   "endpoints": [
+    {
+     "index": 0,
+     "device_id": "router",
+     "port_label": "LAN 1",
+     "state": "established",
+     "support": [
+      {
+       "seq": 1,
+       "image_id": "img_b3ab256308d5",
+       "port_ref": "P1",
+       "device_ref": "D1",
+       "claim": "Router port P1 'LAN 1' [legible] (cable_inserted, plug=blue, visibility=clear)",
+       "grounding": {
+        "concept": "blue ethernet cable",
+        "sam_object_id": "0",
+        "iou": null,
+        "overlap_px": 4392,
+        "corroborated": true,
+        "note": "SAM 'blue ethernet cable' mask covers 4392px of the port region"
+       },
+       "port_basis": "direct_label"
+      },
+      {
+       "seq": 2,
+       "image_id": "img_b2c74ff58fdc",
+       "port_ref": "P1",
+       "device_ref": "D1",
+       "claim": "Router port P1 'LAN 1' [legible] (cable_inserted, plug=blue, visibility=clear)",
+       "grounding": {
+        "concept": "blue ethernet cable",
+        "sam_object_id": "0",
+        "iou": null,
+        "overlap_px": 4392,
+        "corroborated": true,
+        "note": "SAM 'blue ethernet cable' mask covers 4392px of the port region"
+       },
+       "port_basis": "direct_label"
+      }
+     ],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": null
+    },
+    {
+     "index": 1,
+     "device_id": "switch",
+     "port_label": "3",
+     "state": "established",
+     "support": [
+      {
+       "seq": 2,
+       "image_id": "img_b2c74ff58fdc",
+       "port_ref": "P2",
+       "device_ref": "D2",
+       "claim": "Switch port P2 '3' [legible] (cable_inserted, plug=blue, visibility=clear)",
+       "grounding": {
+        "concept": "blue ethernet cable",
+        "sam_object_id": "0",
+        "iou": null,
+        "overlap_px": 5185,
+        "corroborated": true,
+        "note": "SAM 'blue ethernet cable' mask covers 5185px of the port region"
+       },
+       "port_basis": "direct_label"
+      }
+     ],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": null
+    }
+   ],
+   "identity_state": "unknown",
+   "identity_evidence": [
+    {
+     "seq": 2,
+     "image_id": "img_b2c74ff58fdc",
+     "port_ref": null,
+     "device_ref": null,
+     "claim": "blue cable C1 traced continuously between Router LAN 1 = P1 (direct_label) and Switch 3 = P2 (direct_label), SAM-grounded at both ports",
+     "grounding": null,
+     "port_basis": "direct_label"
+    }
+   ],
+   "gaps": [
+    {
+     "requirement_id": "R1",
+     "code": "CONTRADICTION",
+     "endpoint_index": null,
+     "target": "the blue cable run between both endpoints",
+     "missing_fact": "Photos disagree about where the blue cable runs: photo 1, photo 2 trace it to different ports. An unchanged installation has one cable per plug, so this conflict cannot be resolved by choosing one photo. If the equipment was physically changed between photos, the change must be declared so earlier photos stop counting.",
+     "context": {
+      "images": [
+       "img_b2c74ff58fdc",
+       "img_b3ab256308d5"
+      ],
+      "trace_conflicts": [
+       "[img_b3ab256308d5] blue cable C1 traced from Router LAN 1 = P1 (direct_label) to Switch port '4' (P2), not 3, SAM-grounded at both ports"
+      ]
+     }
+    }
+   ],
+   "contradictions": [
+    "cable identity: [img_b2c74ff58fdc] blue cable C1 traced continuously between Router LAN 1 = P1 (direct_label) and Switch 3 = P2 (direct_label), SAM-grounded at both ports; [img_b3ab256308d5] blue cable C1 traced from Router LAN 1 = P1 (direct_label) to Switch port '4' (P2), not 3, SAM-grounded at both ports"
+   ],
+   "assumptions": []
+  }
+ ],
+ "next_view": null,
+ "review_required": [
+  {
+   "requirement_id": "R1",
+   "photos": [
+    1,
+    2
+   ],
+   "contradictions": [
+    "cable identity: [img_b2c74ff58fdc] blue cable C1 traced continuously between Router LAN 1 = P1 (direct_label) and Switch 3 = P2 (direct_label), SAM-grounded at both ports; [img_b3ab256308d5] blue cable C1 traced from Router LAN 1 = P1 (direct_label) to Switch port '4' (P2), not 3, SAM-grounded at both ports"
+   ],
+   "action": "review_installation",
+   "message": "Review needed for R1: photo 1, photo 2 disagree (the blue cable run between both endpoints). Another photo of the unchanged installation cannot remove this conflict, because every photo keeps counting. Check the installation in person. If it was physically changed between photos, declare the change (installation_changed): earlier photos then stop counting and the inspection continues. If nothing changed, this requirement cannot be verified from these photos."
+  }
+ ],
+ "exhausted_gaps": {},
+ "history": [
+  {
+   "epoch": 0,
+   "event": "photo",
+   "image_id": "img_b3ab256308d5",
+   "next_view": "nv1",
+   "notes": [],
+   "requirements": [
+    {
+     "endpoints": [
+      {
+       "device_id": "router",
+       "port_label": "LAN 1",
+       "state": "established",
+       "support_photos": [
+        1
+       ]
+      },
+      {
+       "device_id": "switch",
+       "port_label": "3",
+       "state": "unknown",
+       "support_photos": []
+      }
+     ],
+     "gaps": [
+      "R1:PORT_NOT_FOUND:1"
+     ],
+     "id": "R1",
+     "identity_state": "unknown",
+     "status": "INSUFFICIENT_EVIDENCE"
+    }
+   ],
+   "seq": 1,
+   "source_name": "to_port_4.jpg",
+   "stop_reason": null
+  },
+  {
+   "epoch": 0,
+   "event": "photo",
+   "image_id": "img_b2c74ff58fdc",
+   "next_view": null,
+   "notes": [
+    "Review needed for R1: photo 1, photo 2 disagree (the blue cable run between both endpoints). Another photo of the unchanged installation cannot remove this conflict, because every photo keeps counting. Check the installation in person. If it was physically changed between photos, declare the change (installation_changed): earlier photos then stop counting and the inspection continues. If nothing changed, this requirement cannot be verified from these photos."
+   ],
+   "requirements": [
+    {
+     "endpoints": [
+      {
+       "device_id": "router",
+       "port_label": "LAN 1",
+       "state": "established",
+       "support_photos": [
+        1,
+        2
+       ]
+      },
+      {
+       "device_id": "switch",
+       "port_label": "3",
+       "state": "established",
+       "support_photos": [
+        2
+       ]
+      }
+     ],
+     "gaps": [
+      "R1:CONTRADICTION:None"
+     ],
+     "id": "R1",
+     "identity_state": "unknown",
+     "status": "INSUFFICIENT_EVIDENCE"
+    }
+   ],
+   "seq": 2,
+   "source_name": "to_port_3.jpg",
+   "stop_reason": "contradiction_requires_review"
+  }
+ ],
+ "usage": {
+  "model_calls": 9,
+  "model_call_limit": 40,
+  "remaining": 31,
+  "calls_by_status": {
+   "ok": 9
+  },
+  "estimated_cost_usd": 0.02445,
+  "cost_basis": "list prices applied to committed trace events; excludes calls with unknown outcome"
+ },
+ "disclaimer": "ProofCam verifies visually observable conditions only. It does not certify electrical safety, hidden connectivity, operational performance, or regulatory compliance."
+}

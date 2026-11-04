@@ -69,6 +69,11 @@ class ServiceConfig:
     # Trace provenance label for model calls made through this service ("mock" in tests).
     model_source: str = "live"
     require_grounding: bool = True
+    # Spending cap: model calls reserved across ALL inspections in the database. None = no global cap. A new capture
+    # is refused (429 spend_cap_reached, inspection untouched) unless at least `capture_call_reserve` calls remain;
+    # the per-call reservation enforces the cap as a hard backstop.
+    global_call_limit: int | None = None
+    capture_call_reserve: int = 8
 
     def __post_init__(self) -> None:
         if self.lease_stale_after_s < 3 * self.lease_heartbeat_s:
@@ -96,14 +101,16 @@ class StoreAccounting:
     before settlement stays 'reserved' and becomes 'outcome_unknown' on failure/recovery: counted once, never
     reported as completed."""
 
-    def __init__(self, store: Store, inspection_id: str, lease_token: str, idempotency_key: str) -> None:
+    def __init__(self, store: Store, inspection_id: str, lease_token: str, idempotency_key: str,
+                 global_limit: int | None = None) -> None:
         self.store, self.iid, self.token, self.key = store, inspection_id, lease_token, idempotency_key
+        self.global_limit = global_limit
 
     def before_request(self, name: str, attempt: int, image_id: str | None) -> int:
         label = name if attempt == 1 else f"{name} (attempt {attempt})"
         try:
             return self.store.reserve_model_call(self.iid, self.token, label, image_id=image_id,
-                                                 idempotency_key=self.key)
+                                                 idempotency_key=self.key, global_limit=self.global_limit)
         except ModelCallBudgetExhausted as e:
             raise BudgetExhausted(str(e)) from e
 
@@ -330,6 +337,11 @@ class InspectionService:
                                    "continue" if state.stop_reason not in ("observation_budget_exhausted",
                                                                            "model_call_budget_exhausted")
                                    else f"inspection stopped ({state.stop_reason}); its budget cannot be reopened")
+            limit = self.config.global_call_limit
+            if limit is not None and self.store.total_model_calls() + self.config.capture_call_reserve > limit:
+                raise ServiceError(429, "spend_cap_reached",
+                                   f"the server's model-call cap ({limit} calls across all inspections) does not "
+                                   "leave enough for another photo; nothing was sent to the models")
             current = state.requests[-1].id if state.requests else None
             if responding_to is not None and responding_to != current:
                 raise ServiceError(409, "stale_guidance",
@@ -337,7 +349,8 @@ class InspectionService:
                                    f"{current!r}")
             client = MetaClient(self.settings, Trace.from_events(bundle.trace_events), transport=self.transport,
                                 source=self.config.model_source,
-                                accounting=StoreAccounting(self.store, iid, token, key))
+                                accounting=StoreAccounting(self.store, iid, token, key,
+                                                           self.config.global_call_limit))
             try:
                 agent = InspectionAgent.restore(state, client, self.settings, bundle.images)
                 n_obs, n_trace = len(agent.observations), len(agent.trace.events)
@@ -465,6 +478,12 @@ class InspectionService:
             self.store.get_inspection(inspection_id)
         except InspectionNotFound as e:
             raise ServiceError(404, "not_found", f"inspection {inspection_id} not found") from e
+
+    def spend(self) -> dict[str, Any]:
+        limit = self.config.global_call_limit
+        used = self.store.total_model_calls()
+        return {"global_model_calls": used, "global_call_limit": limit,
+                "global_remaining": None if limit is None else max(0, limit - used)}
 
     def health(self) -> dict[str, Any]:
         problems = self.store.check_integrity()

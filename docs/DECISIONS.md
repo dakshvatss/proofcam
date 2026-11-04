@@ -283,3 +283,38 @@ corroborates "a cable of this colour reaches near this port"; port identity and 
 label/occupancy claims and the M2.1 rules (a legibly empty port stays a violation whatever SAM shows). Residual risk:
 two same-colour cables in adjacent ports cannot be told apart by SAM. A SAM port/plug concept might localise ports;
 untested — proposed as a capped paid experiment (PROGRESS 2026-11-03), not assumed.
+
+## D33 — Milestone 2 closed on offline acceptance; live checks and deployment controls deferred (M2.4, 2026-11-03)
+Because of the submission deadline, M2 is closed on the existing automated tests (351 passed; criteria and evidence in
+`docs/M2_ACCEPTANCE.md`) with no code change. Deferred, not dropped: the capped live check of the M2.2 planner
+wording (≈ 8 Muse planner calls) and the SAM port/plug concept measurement (15 SAM calls) — both need explicit
+approval; until then the unread-label guard (D28) is the only protection proven, and only with mocks. Authentication,
+a spending cap across inspections and request-timeout handling (D24) are preconditions for any public deployment
+(M5), not part of M2. M3 builds on the HTTP API as it is (`docs/FRONTEND_HANDOFF.md`); no API change was made for it.
+
+## D34 — M3.1 frontend shape (2026-11-03)
+Single-page React app without a router (views: landing / inspection / report; inspection id in localStorage and
+`?inspection=`). Same-origin `/api` through the Vite proxy (no CORS, no browser credentials). shadcn/ui-style
+primitives are hand-written (Button/Card/Badge) instead of running the shadcn generator, to avoid setup time.
+A confirm step precedes every capture because each analysis is paid on the real server. Recovery never retries a
+paid capture automatically: only when the saved state shows a step committed after the photo was staged is the same
+key resent (the server returns the stored response); otherwise the user chooses. Verdicts are rendered only from the
+server's `assessments`. Development and tests use mocked models (`experiments/dev_mock_server.py`, fixtures recorded
+from the real API), clearly bannered as mock in the UI.
+
+## D35 — Private phone access: Tailscale Serve + access code + server-wide call cap (M3.2, 2026-11-03)
+iPhone Safari needs HTTPS for the camera. Chosen: `tailscale serve` (tailnet-only HTTPS with a real certificate; no
+Mac, no root-CA profile, no router change) in front of `vite preview` on 127.0.0.1, which proxies `/api` to FastAPI
+on 127.0.0.1. Rejected: public tunnels/Funnel (public exposure), LAN + mkcert (CA profile on the phone, whole-LAN
+exposure). Defence in depth, because the tailnet alone is not an application boundary:
+(1) `PROOFCAM_ACCESS_CODE` (>= 12 chars) -> `POST /api/session` sets an HttpOnly, SameSite=Strict cookie holding
+HMAC(code, label); every route except health/access/session requires it (photos and overlays included); 10 wrong
+codes per minute -> 429. (2) Without a code, `app_from_env` and the mock server are `local_only`: any request with a
+non-loopback client, a non-local Host, or proxy/Tailscale identity headers gets 403. (3) `PROOFCAM_GLOBAL_CALL_LIMIT`
+(default 50) caps reserved model calls across all inspections of the database: a capture is refused (429
+`spend_cap_reached`, inspection untouched, nothing sent) unless 8 calls remain, and the per-call reservation enforces
+the cap in the same transaction as a backstop. Found while testing it: the client counted a call whose very first
+reservation was refused (never sent) as started, inflating the stored counter (over-count only); fixed in
+`meta_client.py` (not an engine-version file; no verdict effect). Stale guidance after an installation change is
+hidden in the frontend (request issued after a superseded photo; the photo is then sent without `responding_to`)
+rather than changing the agent, so stored inspections show no new policy drift.

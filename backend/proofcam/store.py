@@ -776,11 +776,12 @@ class Store:
     # ------------------------------------------------------------------ model-call accounting
 
     def reserve_model_call(self, inspection_id: str, lease_token: str, name: str, *, image_id: str | None = None,
-                           idempotency_key: str | None = None) -> int:
+                           idempotency_key: str | None = None, global_limit: int | None = None) -> int:
         """Record a model call BEFORE it is sent. Returns its ordinal (= the counter after this call).
 
         Stage 3 hook: MetaClient._reserve_call must call this (and abort the call if it raises) so that every call
-        that may reach the API is counted exactly once, durably, before any network I/O.
+        that may reach the API is counted exactly once, durably, before any network I/O. `global_limit` caps the
+        calls reserved across ALL inspections in this database (a spending cap); checked in the same transaction.
         """
         now = self._clock()
         with self._tx() as c:
@@ -788,6 +789,8 @@ class Store:
             if rec.model_calls_reserved >= rec.model_call_limit:
                 raise ModelCallBudgetExhausted(
                     f"inspection {inspection_id}: model call budget ({rec.model_call_limit}) exhausted")
+            if global_limit is not None and self._total_calls(c) >= global_limit:
+                raise ModelCallBudgetExhausted(f"global model call cap ({global_limit}) reached")
             attempt = None
             if idempotency_key is not None:
                 row = c.execute("SELECT attempts FROM submissions WHERE inspection_id = ? AND idempotency_key = ? "
@@ -803,6 +806,15 @@ class Store:
                       "image_id, status, reserved_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'reserved', ?)",
                       (inspection_id, ordinal, lease_token, idempotency_key, attempt, name, image_id, now))
         return ordinal
+
+    @staticmethod
+    def _total_calls(c: sqlite3.Connection) -> int:
+        return int(c.execute("SELECT COALESCE(SUM(model_calls_reserved), 0) FROM inspections").fetchone()[0])
+
+    def total_model_calls(self) -> int:
+        """Model calls reserved across every inspection in this database (retries and unknown outcomes included)."""
+        with self._tx(write=False) as c:
+            return self._total_calls(c)
 
     def settle_model_call(self, inspection_id: str, lease_token: str, ordinal: int,
                           status: Literal["ok", "error"], detail: dict[str, Any] | None = None) -> None:

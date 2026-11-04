@@ -86,10 +86,22 @@ Docs are available as raw markdown: `https://dev.meta.ai/docs/<path>.md`; index 
 | Muse 0–1000 boxes: good at device scale (IoU 0.75–0.95 vs SAM); at port scale can be offset by ~one port width | LIVE |
 | Muse claims vary run to run (e.g. cable "beige" vs "off-white"; `fully_traced` vs `partially_visible`; label `illegible` vs `no_label`) | LIVE |
 
+## LIVE results (2026-11-02 API smoke test; 2026-11-03 offline re-decoding of recorded output)
+| Fact | Status |
+|---|---|
+| One capture through the M1 API (m2 photo): Muse observe 11.0 s, SAM `blue ethernet cable` 3.5 s, SAM `router` 8.1 s, Muse plan 9.5 s; 4 calls, 0 retries, est. $0.0348 | LIVE |
+| Muse planner, given the spec's expected label, wrote "the printed 'LAN 1' text beside its boot" for a label no photo had shown (pre-M2.2 prompt) | LIVE |
+| SAM `network switch` returned 0 objects in all 8 switch groundings on the user's NETGEAR switch; SAM `router` also returned the switch as a second object in m4 and m7 | LIVE (recorded output, re-decoded offline) |
+| A SAM cable mask at an occupied port also reaches an empty neighbour's 50%-expanded Muse port region in 10 of 14 cases | LIVE (recorded output, re-decoded offline) |
+
 ## Open questions (remaining)
 1. Same-device multi-view behaviour on real captures (not yet tested).
-2. Whether a SAM port concept (e.g. "ethernet port") gives precise port boxes to replace Muse port boxes.
+2. Whether a SAM port/plug concept (e.g. "ethernet port", "ethernet plug") gives precise port boxes; a 15-call
+   measurement is specified in PROGRESS 2026-11-03 (not run).
 3. Run-to-run stability rates (needs repeated runs per image).
+4. Whether Muse follows the M2.2 planner rule not to present `labels_never_read_in_any_photo` as visible text
+   (UNVERIFIED; no live planner call since the change; the deterministic guard covers the tested forms).
+5. Whether a different SAM concept (e.g. "ethernet switch") segments the user's switch (UNVERIFIED).
 
 ## Original open questions (now answered above)
 1. Does `response_format` accept our schema (inlined, `anyOf` nullables, ~3.8 KB)? (`probe_api.py`)

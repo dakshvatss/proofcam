@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+/* A phone held sideways: little height, so the camera frame is sized by height instead of width. */
+@custom-variant phone-landscape (@media (orientation: landscape) and (max-height: 540px));
+
+/* ProofCam design tokens. Every colour, font and radius used by the app comes from here (Tailwind v4 theme:
+ * `--color-fg` -> `text-fg`, `bg-fg/10`, `border-fg` ...). Contrast: fg, fg-muted and fg-subtle all reach
+ * WCAG AA (>= 4.5:1) on canvas and surface. */
+@theme {
+  --color-canvas: #0a0b0c;
+  --color-surface: #111315;
+  --color-raised: #181b1e;
+  --color-line: #23272b;
+  --color-line-strong: #32373c;
+
+  --color-fg: #eeeae3;
+  --color-fg-muted: #aaa59c;
+  --color-fg-subtle: #8a857d;
+
+  /* One interactive accent. */
+  --color-accent: #3fbfad;
+  --color-accent-strong: #63d3c3;
+  --color-accent-ink: #03211d;
+
+  /* Verdicts and states: never used decoratively. */
+  --color-ok: #58c98f;
+  --color-bad: #f0705f;
+  --color-warn: #ddb064;
+  --color-mock: #b79af2;
+
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-panel: 1rem;
+  --radius-control: 0.75rem;
+
+  --animate-indeterminate: indeterminate 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  @keyframes indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+}
+
+/* One visible focus treatment for every control (keyboard and switch access); none on touch/mouse. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Viewfinder corner marks, drawn on an overlay inside the camera frame (never on the analysed photo). */
+.viewfinder-corners {
+  --vf: rgb(255 255 255 / 0.72);
+  --vf-len: 22px;
+  --vf-w: 2px;
+  background:
+    linear-gradient(var(--vf), var(--vf)) top left / var(--vf-len) var(--vf-w) no-repeat,
+    linear-gradient(var(--vf), var(--vf)) top left / var(--vf-w) var(--vf-len) no-repeat,
+    linear-gradient(var(--vf), var(--vf)) top right / var(--vf-len) var(--vf-w) no-repeat,
+    linear-gradient(var(--vf), var(--vf)) top right / var(--vf-w) var(--vf-len) no-repeat,
+    linear-gradient(var(--vf), var(--vf)) bottom left / var(--vf-len) var(--vf-w) no-repeat,
+    linear-gradient(var(--vf), var(--vf)) bottom left / var(--vf-w) var(--vf-len) no-repeat,
+    linear-gradient(var(--vf), var(--vf)) bottom right / var(--vf-len) var(--vf-w) no-repeat,
+    linear-gradient(var(--vf), var(--vf)) bottom right / var(--vf-w) var(--vf-len) no-repeat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
