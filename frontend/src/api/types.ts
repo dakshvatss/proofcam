@@ -124,13 +124,41 @@ export interface PhotoInfo {
   overlay_url: string | null
 }
 
+export type Connector = 'ethernet' | 'hdmi' | 'usb' | 'power' | 'optical' | 'coaxial'
+
+/** Installation verdict derived by the server's policy from all requirement verdicts (never by the UI). */
+export interface OverallAssessment {
+  status: RequirementStatus
+  explanation: string
+  requirement_statuses: Record<string, RequirementStatus>
+  review_required: string[]
+}
+
+/** A specification the server can start now (GET /api/specs). Drafts with unconfirmed facts are never listed. */
+export interface SpecSummary {
+  spec_id: string
+  title: string
+  devices: string[]
+  requirements: {
+    id: string
+    text: string
+    connector: string
+    cable_color?: string | null
+    endpoints?: { device: string; port: string; flexible: boolean }[]
+  }[]
+  max_photos?: number | null
+}
+
 export interface ConnectionRequirement {
   id: string
   kind: 'connection'
   text: string
-  cable_color: string
+  /** null = any colour accepted (identity and continuity still required). */
+  cable_color: string | null
   cable_type: string
-  endpoints: { device_id: string; port_label: string; label_aliases: string[] }[]
+  /** Connector family at both ends (absent from servers before M3.4: then ethernet). */
+  connector?: Connector
+  endpoints: { device_id: string; port_label: string; label_aliases: string[]; selector?: Record<string, unknown> | null }[]
   cable_identity: string
   port_identity?: string
 }
@@ -140,6 +168,7 @@ export interface InspectionSpec {
   title: string
   devices: { id: string; name: string; description: string; sam_concept: string }[]
   requirements: ConnectionRequirement[]
+  max_photos?: number | null
 }
 
 export type StopReason =
@@ -161,9 +190,11 @@ export interface InspectionState {
   engine_changed: boolean
   policy_drift: string[]
   busy: boolean
+  created_at?: number | null
   spec: InspectionSpec
   photos: PhotoInfo[]
   assessments: RequirementAssessment[]
+  overall?: OverallAssessment | null
   next_view: NextViewRequest | null
   review_required: ReviewItem[]
   exhausted_gaps: Record<string, string>
@@ -181,6 +212,7 @@ export interface StepResponse {
   status: 'open' | 'stopped'
   stop_reason: string | null
   assessments: RequirementAssessment[]
+  overall?: OverallAssessment | null
   next_view: NextViewRequest | null
   review_required: ReviewItem[]
   version: number

@@ -1,20 +1,29 @@
+import { useId } from 'react'
 import { cn } from '../../lib/utils'
 
-/** ProofCam mark: viewfinder corners around a solid point (the observed fact). */
+/** ProofCam mark: viewfinder corners framing a confirmation tick (evidence captured), on the brand gradient.
+ * Original artwork; kept simple enough to read at favicon size (public/favicon.svg is the same drawing). */
 export function LogoMark({ className }: { className?: string }) {
+  const id = useId()
   return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden className={cn('h-6 w-6', className)}>
-      <rect x="0.5" y="0.5" width="31" height="31" rx="8" className="fill-surface stroke-line-strong" />
-      <path d="M8 13V9.5A1.5 1.5 0 0 1 9.5 8H13M19 8h3.5A1.5 1.5 0 0 1 24 9.5V13M24 19v3.5a1.5 1.5 0 0 1-1.5 1.5H19M13 24H9.5A1.5 1.5 0 0 1 8 22.5V19"
-        className="stroke-fg" strokeWidth="1.75" strokeLinecap="round" />
-      <circle cx="16" cy="16" r="2.75" className="fill-accent" />
+    <svg viewBox="0 0 32 32" aria-hidden className={cn('h-7 w-7 shrink-0', className)}>
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#0866FF" />
+          <stop offset="1" stopColor="#28C7FA" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8.5" fill={`url(#${id})`} />
+      <path d="M8 12.5V10a2 2 0 0 1 2-2h2.5M19.5 8H22a2 2 0 0 1 2 2v2.5M24 19.5V22a2 2 0 0 1-2 2h-2.5M12.5 24H10a2 2 0 0 1-2-2v-2.5"
+        fill="none" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" />
+      <path d="M11.9 16.3l2.9 2.9 5.5-5.7" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-2 text-[15px] font-semibold tracking-tight text-fg', className)}>
+    <span className={cn('inline-flex items-center gap-2.5 text-[17px] font-semibold tracking-[-0.01em] text-fg', className)}>
       <LogoMark />
       ProofCam
     </span>

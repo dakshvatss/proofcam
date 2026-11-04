@@ -318,3 +318,65 @@ reservation was refused (never sent) as started, inflating the stored counter (o
 `meta_client.py` (not an engine-version file; no verdict effect). Stale guidance after an installation change is
 hidden in the frontend (request issued after a superseded photo; the photo is then sent without `responding_to`)
 rather than changing the agent, so stored inspections show no new policy drift.
+
+## D36 — Several connections in one inspection: connector families + a derived overall verdict (M3.4, 2026-11-04)
+- **Already supported:** the engine handled N devices and N requirements (per-requirement assessment, gaps,
+  review blocking, SAM concept per cable). What was missing was any notion of **connector type**: two cables of the
+  same colour on one device (e.g. a black Ethernet cable and a black HDMI cable on a PS5) could be conflated. With
+  `unique_in_installation`, a black HDMI plug could even be read as "the unique Ethernet cable in the wrong port".
+- **Requirements:** `connector` (default `ethernet`, so existing specs are unchanged).
+- **Observations:** `connector_type` per port and cable, judged from the visible shape (default `unclear`, so
+  stored observations keep their meaning).
+- **Policy rules:**
+  - A clearly different family is never this requirement's port or cable (no support, no violation, no trace,
+    no borrowed colour).
+  - `unclear` is consistent, except on devices that are endpoints of several families, where negative evidence
+    (wrong-port plug, conflicting trace) needs the family observed explicitly.
+  - Support still needs the printed label, insertion, colour and SAM grounding exactly as before. Nothing was
+    relaxed.
+- **Overall verdict:** `policy.overall_assessment`, from requirement verdicts only. VERIFIED only if all are
+  VERIFIED; VIOLATED if any is VIOLATED; otherwise INSUFFICIENT_EVIDENCE. Contradicted requirements are listed in
+  `review_required`. It is exposed as `overall` (an added field; existing semantics are unchanged).
+- **Drafts:** a spec containing `TODO` fails validation. Drafts live in `data/specs/drafts/` (not loaded).
+  `GET /api/specs` lists only loadable specs.
+- **Engine fingerprint:** it changes, so older inspections show the "earlier engine" banner. Re-assessing them
+  gives the same verdicts, because their connector types load as `unclear` and all their specs are single-family.
+- **Not changed:** budgets (6 photos, 40 calls, global cap) and port identity rules. Icon-only ports remain
+  unidentifiable.
+
+## D37 — Flexible endpoints, any-colour cables, per-spec photo budget, light UI (M3.5, 2026-11-04)
+- **Exact endpoints are unchanged.** Requirements with no `selector` behave and word themselves exactly as before
+  (all earlier tests pass unmodified; mutation-checked).
+- **Flexible endpoints:** `EndpointSpec.selector` (`allowed_labels`, `allowed_group`, `excluded_labels`,
+  `any_socket_of_connector`).
+  - **Which ports qualify:**
+    - an allowed printed label;
+    - the group word alone or followed by a number ("LAN 3", "3" under a "LAN" heading; never "WAN", never
+      "HDMI OUT" for "HDMI");
+    - or, only where the spec asserts that every socket of the requirement's family qualifies, an EXPLICITLY
+      observed socket shape whose legible label does not contradict the selector.
+  - Shape identity is a disclosed assumption (`port_basis = connector_shape`).
+  - **What is never a violation:** a permitted port that is empty or holds another cable, because another permitted
+    port may be used.
+  - **What is a violation:** only every listed port (`allowed_labels`) seen clearly empty.
+  - **Negative evidence** ("legibly another port") uses `other_port`, which never fires for ports a shape rule may
+    accept.
+- **Any colour:** `cable_color: null` removes colour from support and violation only. Port identity, clear
+  insertion, SAM grounding at the port and a single-image trace remain required. `unique_in_installation` needs a
+  colour, because "the only Ethernet cable" is too weak to join endpoints.
+- **Photo budget per spec:** `max_photos` (1–10; null = server default 6). The per-inspection call budget (40) and
+  the server-wide cap are unchanged.
+- **SAM prioritisation:** only when the per-photo cap would drop concepts, a cable concept that no occupied,
+  family-compatible port in the photo could use is skipped first. Specs that never hit the cap are unaffected.
+- **API (additive):**
+  - `GET /api/specs` adds endpoints, `cable_color` and `max_photos`;
+  - `InspectionState.created_at` is new;
+  - the engine fingerprint changes (older inspections show the earlier-engine banner, with the same verdicts).
+- **UI:**
+  - light-first design system (Inter, SIL OFL, self-hosted; blue `#0866FF` with a restrained cyan only in the brand
+    gradient);
+  - an original viewfinder-and-tick mark;
+  - one DOM for phone (ordered task → camera → result → progress) and desktop (two columns);
+  - the report view is lazy-loaded;
+  - mode labels LIVE / MOCK / REPLAY, with unknown sources never shown as live;
+  - copy names Meta's models only where they actually ran (live), plus an explicit no-affiliation note.

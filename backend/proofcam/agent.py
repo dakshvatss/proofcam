@@ -33,7 +33,8 @@ from .grounding import GroundingRun, link_devices, link_ports, run_sam
 from .images import NormalizedImage
 from .meta_client import BudgetExhausted, MetaAPIError, MetaClient
 from .muse import ModelOutputError, extract_observations, plan_next_view, summarize_extraction
-from .policy import ambiguous_device_ids, assess_requirement, label_matches, select_gap
+from .observation import ObservationExtraction
+from .policy import ambiguous_device_ids, assess_requirement, connector_match, label_matches, select_gap
 from .spec import InspectionSpec
 
 # contradiction_requires_review: every remaining open requirement is blocked by a contradiction, which no further
@@ -92,6 +93,8 @@ class InspectionAgent:
         self.trace = client.trace
         self.settings = settings
         self.budget = settings.budget
+        # The spec may set its own photo budget (bounded by spec.MAX_PHOTOS_LIMIT); otherwise the server default.
+        self.max_observations = spec.max_photos or self.budget.max_observations
         self.require_grounding = require_grounding
         # False = next-view plans come from the deterministic templates only (offline replay, no API calls).
         self.plan_with_muse = plan_with_muse
@@ -359,8 +362,10 @@ class InspectionAgent:
             dev_concepts = {d.id: d.sam_concept for d in self.spec.devices}
             seen_ids = {d.spec_device_id for d in ext.devices if d.spec_device_id}
             cable_concepts = sorted({r.cable_concept() for r in self.spec.requirements})
-            concepts = cable_concepts + sorted({dev_concepts[i] for i in seen_ids})
-            concepts = list(dict.fromkeys(concepts))[: self.budget.max_sam_calls_per_image]
+            concepts = list(dict.fromkeys(cable_concepts + sorted({dev_concepts[i] for i in seen_ids})))
+            if len(concepts) > self.budget.max_sam_calls_per_image:
+                concepts = self._prioritize_concepts(ext, cable_concepts, concepts)
+            concepts = concepts[: self.budget.max_sam_calls_per_image]
             run = await run_sam(self.client, image, concepts)
             rec.sam = run.groundings
             rec.device_links = link_devices(ext, run, dev_concepts, image.width, image.height)
@@ -406,7 +411,7 @@ class InspectionAgent:
                 self.exhausted[k] = f"still unresolved after {n} targeted views"
                 notes.append(f"Giving up on gap {k}: {self.exhausted[k]}")
 
-        if seq >= self.budget.max_observations:
+        if seq >= self.max_observations:
             return self._stop("observation_budget_exhausted", seq, image_id, name, notes)
 
         # CONTRADICTIONS: never answered with a camera request. A requirement blocked by one needs installation
@@ -437,6 +442,18 @@ class InspectionAgent:
             self.requests.append(req)
             self.trace.add("plan", "next_view", image_id=image_id, detail=req.model_dump())
             return self._step(seq, image_id, name, req, notes)
+
+    def _prioritize_concepts(self, ext: ObservationExtraction, cable_concepts: list[str],
+                             concepts: list[str]) -> list[str]:
+        """Only when the per-photo SAM cap would drop concepts: skip a cable concept that no port in this photo
+        could use. Grounding is only ever read at OCCUPIED ports whose connector family is not clearly another one,
+        so such a concept cannot add evidence; the freed call goes to the next concept (a device mask)."""
+        useful = set()
+        for r in self.spec.requirements:
+            if any(p.occupancy == "cable_inserted" and connector_match(p.connector_type, r.connector) != "mismatch"
+                   for p in ext.ports):
+                useful.add(r.cable_concept())
+        return [c for c in concepts if c not in cable_concepts or c in useful]
 
     def _addresses(self, rec: ObservationRecord, req: NextViewRequest) -> bool:
         """Did this photo show what the request targeted? Uses only the photo's own (validated) observation claims:
@@ -514,7 +531,9 @@ class InspectionAgent:
                     seen = True
                     break
             if not seen:
-                out += [e.port_label, *e.label_aliases]
+                # Exact endpoints: the expected label. Flexible ones: only their listed labels (never a group word
+                # or the display name, which are not claims about printed text).
+                out += [e.port_label, *e.label_aliases] if not e.flexible else list(e.selector.allowed_labels)  # type: ignore[union-attr]
         return out
 
     def _devices_in_latest_view(self) -> set[str]:

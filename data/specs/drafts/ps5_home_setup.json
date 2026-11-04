@@ -1,0 +1,55 @@
+{
+  "id": "ps5_home_setup_v1",
+  "title": "Home Entertainment Installation",
+  "devices": [
+    {
+      "id": "router",
+      "name": "Wi-Fi Router",
+      "description": "Dark blue/black rectangular Wi-Fi router with a circular logo on its top. On the rear: a row of five RJ45 Ethernet sockets with two USB-A sockets beside them, and a power cable attached.",
+      "sam_concept": "router",
+      "port_rows": []
+    },
+    {
+      "id": "ps5",
+      "name": "PlayStation 5",
+      "description": "Original Sony PlayStation 5 (standard model, not Slim or Pro). Rear connections per Sony: one LAN port, one HDMI OUT port, two USB Type-A ports and an AC IN power connector.",
+      "sam_concept": "game console",
+      "port_rows": []
+    },
+    {
+      "id": "tv",
+      "name": "Samsung Television",
+      "description": "Large black Samsung television. Its rear/side connection panel has three HDMI-shaped inputs with two USB-A-style ports above them.",
+      "sam_concept": "television",
+      "port_rows": []
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "kind": "connection",
+      "text": "TODO: The <colour> Ethernet cable must connect Wi-Fi Router <port label> to the PlayStation 5 LAN port.",
+      "cable_color": "TODO: one base colour of the real Ethernet cable, from a photo of it",
+      "cable_type": "ethernet cable",
+      "connector": "ethernet",
+      "endpoints": [
+        {"device_id": "router", "port_label": "TODO: router LAN port label exactly as printed on the router", "label_aliases": []},
+        {"device_id": "ps5", "port_label": "LAN", "label_aliases": ["LAN port"]}
+      ],
+      "cable_identity": "require_trace"
+    },
+    {
+      "id": "R2",
+      "kind": "connection",
+      "text": "TODO: The <colour> HDMI cable must connect the PlayStation 5 HDMI OUT port to Samsung Television <HDMI input label>.",
+      "cable_color": "TODO: one base colour of the real HDMI cable, from a photo of it",
+      "cable_type": "hdmi cable",
+      "connector": "hdmi",
+      "endpoints": [
+        {"device_id": "ps5", "port_label": "HDMI OUT", "label_aliases": []},
+        {"device_id": "tv", "port_label": "TODO: TV HDMI input label exactly as printed (do not assume 'HDMI 1')", "label_aliases": []}
+      ],
+      "cable_identity": "require_trace"
+    }
+  ]
+}

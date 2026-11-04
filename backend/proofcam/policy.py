@@ -34,8 +34,23 @@ from per-image claims, accumulated over all photos of the CURRENT installation c
                        supports the endpoints: identity and endpoint support are separate facts, joined
                        through port identity under the static-installation assumption. Or: an explicit
                        spec assertion (disclosed). Similar cables in different images are never joined.
+  Connector family   : the requirement's connector (ethernet, hdmi, ...). A port or cable whose observed family
+                       is clearly another one is never this requirement's port or cable (neither support nor
+                       violation). "unclear" is consistent with any family, except that on a device which is an
+                       endpoint of requirements with DIFFERENT connector families, negative evidence (wrong-port
+                       plug, conflicting trace) needs the family to be observed explicitly.
   VERIFIED           : both endpoints supported AND identity established. Anything less is
                        INSUFFICIENT_EVIDENCE unless there is an uncontradicted violation.
+  Flexible endpoints : (spec.PortSelector) any port in an allowed label list or label group, or - only where the
+                       spec asserts it - any socket of the requirement's connector family whose shape was OBSERVED
+                       (disclosed as an assumption). Unknown ports never qualify. An empty permitted port, or one
+                       holding another cable, is not a violation (another permitted port may be used); only every
+                       listed permitted port clearly empty is.
+  Any colour         : cable_color null. Colour neither supports nor violates; port identity, insertion, SAM
+                       grounding and single-image cable identity are still required.
+  Overall            : over all requirements (overall_assessment): VIOLATED if any requirement is VIOLATED,
+                       VERIFIED only if every requirement is VERIFIED, otherwise INSUFFICIENT_EVIDENCE.
+                       Contradictions stay listed next to it.
 """
 
 from __future__ import annotations
@@ -49,6 +64,7 @@ from .evidence import (
     EvidenceItem,
     Gap,
     ObservationRecord,
+    OverallAssessment,
     PortIdentityBasis,
     RequirementAssessment,
 )
@@ -84,6 +100,26 @@ _NEAR = {frozenset(p) for p in [
 ]}
 
 ColorMatch = Literal["match", "mismatch", "uncertain"]
+ConnectorMatch = Literal["match", "mismatch", "unknown"]
+
+
+def connector_match(observed: str | None, want: str) -> ConnectorMatch:
+    """Observed connector family vs the required one. 'unclear' (or a missing value, from observations recorded
+    before connector families were reported) is unknown; any other differing family, 'other' included, is a
+    mismatch."""
+    if observed is None or observed == "unclear":
+        return "unknown"
+    return "match" if observed == want else "mismatch"
+
+
+def mixed_connector_devices(spec: InspectionSpec) -> set[str]:
+    """Devices that are endpoints of requirements with different connector families (e.g. a console with an
+    Ethernet and an HDMI requirement). On them an unknown connector family cannot tell the requirements apart."""
+    fams: dict[str, set[str]] = {}
+    for r in spec.requirements:
+        for e in r.endpoints:
+            fams.setdefault(e.device_id, set()).add(r.connector)
+    return {d for d, f in fams.items() if len(f) > 1}
 
 # Layout inference geometry (Muse 0-1000 boxes). Ports are in one row if their vertical extents overlap by
 # at least this fraction of the smaller box; neighbour spacing may vary at most by this ratio, so that a
@@ -137,8 +173,43 @@ def _legible_labels(p: PortObservation) -> set[str]:
     return out
 
 
+def _excluded(p: PortObservation, e: EndpointSpec) -> bool:
+    return e.selector is not None and bool(
+        _legible_labels(p) & {normalize_label(x) for x in e.selector.excluded_labels})
+
+
+def _in_group(p: PortObservation, group: str) -> bool:
+    """Legible printed text puts this port in the group: heading == group, or label == group optionally followed
+    by a number ('LAN', 'LAN 3', '3' under a 'LAN' heading; never 'WAN' or 'HDMI OUT' for 'HDMI')."""
+    labels = _legible_labels(p)
+    if not labels:
+        return False
+    g = normalize_label(group)
+    if p.label_group and normalize_label(p.label_group) == g:
+        return True
+    return any(x.startswith(g) and (len(x) == len(g) or x[len(g)].isdigit()) for x in labels)
+
+
 def label_matches(p: PortObservation, e: EndpointSpec) -> bool:
-    return bool(_legible_labels(p) & e.accepted_labels())
+    """The port's own legible printed text identifies it as endpoint e (exact label/alias, or for a flexible
+    endpoint an allowed label or the allowed group, never an excluded label)."""
+    labels = _legible_labels(p)
+    if e.selector is None:
+        return bool(labels & e.accepted_labels())
+    if not labels or _excluded(p, e):
+        return False
+    return bool(labels & e.accepted_labels()) or bool(e.selector.allowed_group and _in_group(p, e.selector.allowed_group))
+
+
+def other_port(p: PortObservation, e: EndpointSpec) -> bool:
+    """The port is positively NOT endpoint e: its printed label is legible and rules it out. Used only for negative
+    evidence. A port that a flexible endpoint may accept by socket shape is never ruled out by its label, unless
+    the label is explicitly excluded."""
+    if not _legible_labels(p) or label_matches(p, e):
+        return False
+    if e.selector is None or _excluded(p, e):
+        return True
+    return not e.selector.any_socket_of_connector
 
 
 def _cx(b: Box1000) -> float:
@@ -212,25 +283,40 @@ def infer_port_identity(ext: ObservationExtraction, device_ref: str, p: PortObse
 
 
 def identify_port(ext: ObservationExtraction, d: SeenDevice, p: PortObservation, e: EndpointSpec,
-                  dev: DeviceSpec) -> tuple[PortIdentityBasis | None, str | None]:
+                  dev: DeviceSpec, connector: str = "ethernet") -> tuple[PortIdentityBasis | None, str | None]:
     if label_matches(p, e):
         return "direct_label", None
+    if e.selector is not None:
+        sel = e.selector
+        # Shape identification: only where the spec accepts every socket of this family on the device, only for an
+        # EXPLICITLY observed matching shape, and never for a port whose legible label contradicts the selector.
+        label_rules = bool(sel.allowed_labels or sel.allowed_group)
+        if (sel.any_socket_of_connector and connector_match(p.connector_type, connector) == "match"
+                and not _excluded(p, e) and not (label_rules and _legible_labels(p))):
+            return "connector_shape", (f"identified by its observed {connector} socket shape (the spec accepts any "
+                                       f"{connector} socket on the {dev.name}), not by a printed label")
+        return None, None
     note = infer_port_identity(ext, d.ref, p, e, dev)
     return ("layout_inference", note) if note else (None, None)
 
 
-def plug_colour_status(ext: ObservationExtraction, p: PortObservation,
-                       want: str | None) -> tuple[ColorMatch, Literal["plug", "cable", "disagreement"]]:
+def plug_colour_status(ext: ObservationExtraction, p: PortObservation, want: str | None,
+                       connector: str = "ethernet", any_colour: bool = False
+                       ) -> tuple[ColorMatch, Literal["plug", "cable", "disagreement"]]:
     """Colour of what is in the port, judged against the required base colour, within ONE image.
 
     The plug's own stated colour decides when it is a clear match or mismatch. A colourless or see-through plug
     takes the colour of a cable that Muse says visibly belongs to this port in the same image ('cable'; support
     then additionally requires SAM grounding at the port, see assess_endpoint). A plug stated as a clearly
     different colour while a linked cable is (or may be) the required colour is a disagreement inside one photo:
-    uncertain, never a violation.
+    uncertain, never a violation. Cables of a clearly different connector family are not considered.
+    With any_colour (the requirement accepts any cable colour) colour is not a criterion: always 'match'.
     """
+    if any_colour:
+        return "match", "plug"
     own = compare_color(p.plug_color, want)
-    linked = [compare_color(c.color, want) for c in ext.cables if p.ref in c.connected_port_refs]
+    linked = [compare_color(c.color, want) for c in ext.cables
+              if p.ref in c.connected_port_refs and connector_match(c.connector_type, connector) != "mismatch"]
     if own == "match":
         return "match", "plug"
     if own == "mismatch":
@@ -270,10 +356,15 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                     obs: list[ObservationRecord], require_grounding: bool) -> EndpointAssessment:
     e = req.endpoints[idx]
     dev = spec.device(e.device_id)
-    target = f"{dev.name} port {e.port_label}"
+    target = f"{dev.name} {e.port_label}" if e.flexible else f"{dev.name} port {e.port_label}"
+    any_colour = req.cable_color is None
     want = base_color(req.cable_color)
+    plug_word = f"{req.cable_color} plug" if req.cable_color else "plug"
+    what = f"one of the permitted ports ({e.port_label})" if e.flexible else e.port_label
     concept = req.cable_concept()
     allow_inference = req.port_identity == "label_or_layout"
+    # Several connector families on this device: an unknown family cannot justify negative evidence here.
+    strict_family = dev.id in mixed_connector_devices(spec)
     support: list[EvidenceItem] = []
     weak: list[EvidenceItem] = []
     conflicts: list[EvidenceItem] = []
@@ -281,6 +372,8 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
     colour_uncertain: list[EvidenceItem] = []  # clear insertion, stated colour neither matches nor clearly differs
     inferred_only: list[EvidenceItem] = []
     hidden_label_plugs: list[EvidenceItem] = []  # matching plug in a port whose label could not be read
+    permitted_empty: list[tuple[set[str], EvidenceItem]] = []  # flexible: a permitted port seen clearly empty
+    other_cable: list[EvidenceItem] = []  # flexible: a permitted port holding a cable of another colour
     illegible_ports = 0
     ports_seen = 0
     sides: set[str] = set()
@@ -293,15 +386,18 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
             if p.device_ref != d.ref:
                 continue
             ports_seen += 1
+            family = connector_match(p.connector_type, req.connector)
+            if family == "mismatch":
+                continue  # a socket of another connector family is never this requirement's port
             if p.label_legibility in ("partially_legible", "illegible"):
                 illegible_ports += 1
-            basis, how = identify_port(ext, d, p, e, dev)
+            basis, how = identify_port(ext, d, p, e, dev, req.connector)
             item = EvidenceItem(seq=o.seq, image_id=o.image_id, port_ref=p.ref, device_ref=d.ref,
                                 claim=f"{dev.name} {_port_desc(p)}" + (f" — {how}" if how else ""),
                                 grounding=o.port_links.get(f"{p.ref}|{concept}"), port_basis=basis)
             clear = p.insertion_visibility == "clear"
             inserted = p.occupancy == "cable_inserted"
-            status, via = plug_colour_status(ext, p, want)
+            status, via = plug_colour_status(ext, p, want, req.connector, any_colour)
             colour_ok = clear and inserted and status == "match"
             if colour_ok and via == "cable":
                 item = item.model_copy(update={"claim": item.claim + f" -> plug colourless; {want} cable "
@@ -310,7 +406,24 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
             # A colourless plug borrows the cable's colour only through the Muse link; that association must be
             # SAM-grounded even when grounding is otherwise not required (ablation runs).
             strong = grounded or (not require_grounding and via == "plug")
-            if basis == "direct_label":
+            if basis in ("direct_label", "connector_shape") and e.flexible:
+                # Flexible endpoint: one permitted port being empty or holding another cable does not rule the
+                # requirement out - another permitted port may hold the cable.
+                if colour_ok:
+                    (support if strong else weak).append(item)
+                elif clear and p.occupancy == "empty":
+                    permitted_empty.append((_legible_labels(p), item.model_copy(update={
+                        "claim": item.claim + " -> permitted port is empty"})))
+                elif clear and inserted and status == "mismatch":
+                    other_cable.append(item.model_copy(update={
+                        "claim": item.claim + f" -> holds a {base_color(p.plug_color)} plug, not {want}"}))
+                elif clear and inserted and p.plug_color and status == "uncertain":
+                    colour_uncertain.append(item.model_copy(update={
+                        "claim": item.claim + f" -> stated plug colour '{p.plug_color}' is not clearly {want} nor "
+                                              "clearly another colour"}))
+                else:
+                    unclear_matches.append(item)
+            elif basis == "direct_label":
                 if clear and p.occupancy == "empty":
                     conflicts.append(item.model_copy(update={"claim": item.claim + " -> target port is empty"}))
                 elif clear and inserted and status == "mismatch":
@@ -337,9 +450,19 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                 if colour_ok and not _legible_labels(p):
                     hidden_label_plugs.append(item)
                 if (req.cable_identity == "unique_in_installation" and p.label_legibility == "legible"
-                        and clear and inserted and status == "match" and via == "plug"):
+                        and other_port(p, e) and clear and inserted and status == "match" and via == "plug"
+                        and (family == "match" or not strict_family)):
                     conflicts.append(item.model_copy(update={
                         "claim": item.claim + f" -> the (spec-unique) {want} cable is in the wrong port"}))
+
+    sel = e.selector
+    if sel is not None and sel.allowed_labels and not sel.allowed_group and not sel.any_socket_of_connector:
+        # A finite list of permitted ports: the requirement is ruled out only if EVERY listed port is seen clearly
+        # empty (static installation, current configuration).
+        listed = e.accepted_labels()
+        if listed and listed <= set().union(*(labels for labels, _ in permitted_empty)):
+            conflicts.extend(item.model_copy(update={"claim": item.claim + "; every permitted port is clearly empty"})
+                             for _, item in permitted_empty)
 
     def gap(code, fact, **ctx) -> Gap:
         return Gap(requirement_id=req.id, code=code, endpoint_index=idx, target=target,
@@ -368,7 +491,7 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
         return result("violated", conflicts=conflicts)
     if weak:
         g = gap("GROUNDING_MISSING",
-                f"Muse reports a {req.cable_color} plug in {target}, but SAM did not segment a "
+                f"Muse reports a {plug_word} in {target}, but SAM did not segment a "
                 f"'{concept}' reaching that port; a closer, unobstructed view is needed.")
     elif colour_uncertain:
         g = gap("INSERTION_UNCLEAR",
@@ -378,7 +501,7 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                 observed=[f"[{x.image_id}] {x.claim}" for x in colour_uncertain][:3])
     elif unclear_matches:
         g = gap("INSERTION_UNCLEAR",
-                f"{target} was found, but whether a {req.cable_color} plug is clearly inserted is not visible.")
+                f"{target} was found, but whether a {plug_word} is clearly inserted is not visible.")
     elif not hits:
         uncertain = any(True for _ in _device_hits(obs, e.device_id, "uncertain"))
         ambiguous = ambiguous_photos(obs, e.device_id)
@@ -392,8 +515,8 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                 sides_seen=sorted(sides))
     elif inferred_only or hidden_label_plugs:
         layout_ok = any(x.port_basis == "layout_inference" for x in inferred_only)
-        fact = (f"A {req.cable_color} plug was seen in a {dev.name} port whose own printed label is not "
-                f"readable (likely hidden by the plug), so it is not established that this is {e.port_label}.")
+        fact = (f"A {plug_word} was seen in a {dev.name} port whose own printed label is not "
+                f"readable (likely hidden by the plug), so it is not established that this is {what}.")
         if layout_ok:
             fact += (" Neighbouring labels place it at the declared position of "
                      f"{e.port_label}, but this requirement accepts only a directly readable label.")
@@ -402,8 +525,16 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                 candidate_ports=[f"[{x.image_id}] {x.claim}" for x in inferred_only + hidden_label_plugs][:4])
     elif illegible_ports:
         g = gap("LABEL_ILLEGIBLE",
-                f"Ports on the {dev.name} were seen, but labels were not legible enough to find {e.port_label}.",
+                f"Ports on the {dev.name} were seen, but labels were not legible enough to find {what}.",
                 sides_seen=sorted(sides))
+    elif e.flexible:
+        seen_empty = [x for _, x in permitted_empty]
+        fact = f"No observed port on the {dev.name} was identified as {e.port_label} holding the {req.cable_desc()}."
+        if seen_empty or other_cable:
+            fact += (f" Permitted ports seen so far: {len(seen_empty)} empty, {len(other_cable)} holding another "
+                     "cable; another permitted port may hold it.")
+        g = gap("PORT_NOT_FOUND", fact, sides_seen=sorted(sides),
+                permitted_ports_seen=[f"[{x.image_id}] {x.claim}" for x in seen_empty + other_cable][:4])
     else:
         g = gap("PORT_NOT_FOUND", f"No observed port on the {dev.name} was legibly labelled {e.port_label}.",
                 sides_seen=sorted(sides))
@@ -427,8 +558,10 @@ def identity_evidence(spec: InspectionSpec, req: ConnectionRequirement, obs: lis
     conflict is about the cable in one identified port, not about cable appearance.
     """
     want = base_color(req.cable_color)
+    any_colour = req.cable_color is None
     concept = req.cable_concept()
     allow_inference = req.port_identity == "label_or_layout"
+    strict = mixed_connector_devices(spec)
     out: list[EvidenceItem] = []
     near: list[str] = []
     conflicts: list[EvidenceItem] = []
@@ -441,7 +574,8 @@ def identity_evidence(spec: InspectionSpec, req: ConnectionRequirement, obs: lis
                 if d.identification_certainty == "clear" and d.spec_device_id not in amb}
         ports = {p.ref: p for p in ext.ports}  # type: ignore[union-attr]
         for c in ext.cables:  # type: ignore[union-attr]
-            if c.path_visibility != "fully_traced" or compare_color(c.color, want) != "match":
+            if (c.path_visibility != "fully_traced" or (not any_colour and compare_color(c.color, want) != "match")
+                    or connector_match(c.connector_type, req.connector) == "mismatch"):
                 continue
             ends, why, attached, elsewhere = [], [], [], []
             for e in req.endpoints:
@@ -450,19 +584,22 @@ def identity_evidence(spec: InspectionSpec, req: ConnectionRequirement, obs: lis
                     p, d = ports[pr], devs.get(ports[pr].device_ref)
                     if d is None or d.spec_device_id != e.device_id or p.occupancy != "cable_inserted":
                         continue
+                    family = connector_match(p.connector_type, req.connector)
+                    if family == "mismatch":
+                        continue  # socket of another connector family: not where this cable ends
                     seen = True
-                    if plug_colour_status(ext, p, want)[0] != "match":  # type: ignore[arg-type]
+                    if plug_colour_status(ext, p, want, req.connector, any_colour)[0] != "match":  # type: ignore[arg-type]
                         reason = f"{pr} holds a {p.plug_color} plug"
                         continue
                     link = o.port_links.get(f"{pr}|{concept}")
                     if require_grounding and not (link and link.corroborated):
                         reason = f"{pr} is not SAM-grounded"
                         continue
-                    basis, _ = identify_port(ext, d, p, e, spec.device(e.device_id))  # type: ignore[arg-type]
-                    if basis == "direct_label" or (basis == "layout_inference" and allow_inference):
+                    basis, _ = identify_port(ext, d, p, e, spec.device(e.device_id), req.connector)  # type: ignore[arg-type]
+                    if basis in ("direct_label", "connector_shape") or (basis == "layout_inference" and allow_inference):
                         hit = (p, basis)
                         break
-                    if _legible_labels(p) and not label_matches(p, e):
+                    if other_port(p, e) and (family == "match" or e.device_id not in strict):
                         other = p  # qualified plug at a legibly DIFFERENT port of this spec device
                     reason = (f"{pr} could not be identified as {e.port_label} in this photo "
                               f"(label {p.label_legibility}"
@@ -487,8 +624,7 @@ def identity_evidence(spec: InspectionSpec, req: ConnectionRequirement, obs: lis
                         for e, (p, basis) in zip(req.endpoints, ends)]
                 out.append(EvidenceItem(
                     seq=o.seq, image_id=o.image_id,
-                    port_basis="layout_inference" if any(b == "layout_inference" for _, b in ends)
-                    else "direct_label",
+                    port_basis=next((b for _, b in ends if b != "direct_label"), "direct_label"),
                     claim=f"{c.color} cable {c.ref} traced continuously between " + " and ".join(desc)
                           + (", SAM-grounded at both ports" if require_grounding else "")))
             elif all(attached):
@@ -517,6 +653,7 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
     identity_ev: list[EvidenceItem] = []
 
     ambiguity = _ambiguity_note(spec, req, obs)
+    run_word = f"{req.cable_color} cable" if req.cable_color else req.cable_type
 
     violated = [ep for ep in eps if ep.state == "violated"]
     if violated:
@@ -527,6 +664,11 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
                                      contradictions=contradictions)
 
     for ep in eps:
+        shaped = [s for s in ep.support if s.port_basis == "connector_shape"]
+        if shaped:
+            assumptions.append(f"{spec.device(ep.device_id).name} {ep.port_label} was identified in "
+                               f"{_photos(shaped)} by its observed {req.connector} socket shape, not a printed label: "
+                               f"the spec accepts any {req.connector} socket on that device.")
         inferred = [s for s in ep.support if s.port_basis == "layout_inference"]
         if inferred:
             assumptions.append(f"{spec.device(ep.device_id).name} {ep.port_label} was identified by layout "
@@ -557,9 +699,9 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
         opposing = (traced if not unique else []) + trace_conflicts
         contradictions.append("cable identity: " + "; ".join(f"[{x.image_id}] {x.claim}" for x in opposing))
         gaps.append(Gap(requirement_id=req.id, code="CONTRADICTION", endpoint_index=None,
-                        target=f"the {req.cable_color} cable run between both endpoints",
+                        target=f"the {run_word} run between both endpoints",
                         missing_fact=("Photos disagree about where the "
-                                      f"{req.cable_color} cable runs: {_photos(opposing)} trace it to different "
+                                      f"{run_word} runs: {_photos(opposing)} trace it to different "
                                       "ports. An unchanged installation has one cable per plug, so this conflict "
                                       "cannot be resolved by choosing one photo. If the equipment was physically "
                                       "changed between photos, the change must be declared so earlier photos stop "
@@ -569,7 +711,7 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
     elif not unique:
         if both and not identity_ev:
             gaps.append(Gap(requirement_id=req.id, code="CABLE_CONTINUITY", endpoint_index=None,
-                            target=f"the {req.cable_color} cable run between both endpoints",
+                            target=f"the {run_word} run between both endpoints",
                             missing_fact=("Both ends show a matching plug, but no single photo shows the "
                                           "same cable running continuously between the two identified ports."
                                           + (" Near miss: " + " | ".join(near[:2]) if near else "")),
@@ -580,7 +722,8 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
                           for ep in eps)
         return RequirementAssessment(
             requirement_id=req.id, status="VERIFIED",
-            explanation="Both endpoints observed with identified ports, clear insertion and matching colour"
+            explanation="Both endpoints observed with identified ports, clear insertion and "
+                        + ("matching colour" if req.cable_color else "a plug inserted (any cable colour accepted)")
                         + (", SAM-grounded" if require_grounding else "") + f" ({where})"
                         + (f"; cable identity traced in {_photos(identity_ev)}." if identity_state == "established"
                            else "; cable identity relies on a spec assertion.") + ambiguity,
@@ -597,6 +740,29 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
                                  explanation=f"Not established: {missing}", endpoints=eps,
                                  identity_state=identity_state, identity_evidence=identity_ev,
                                  gaps=gaps, contradictions=contradictions, assumptions=assumptions)
+
+
+def overall_assessment(assessments: list[RequirementAssessment]) -> OverallAssessment | None:
+    """The installation verdict over all requirements, derived only from the per-requirement verdicts:
+    VIOLATED if any requirement is VIOLATED; VERIFIED only if every requirement is VERIFIED; otherwise
+    INSUFFICIENT_EVIDENCE. Requirements with unresolved contradictions are listed, never folded away."""
+    if not assessments:
+        return None
+    by = {s: [a.requirement_id for a in assessments if a.status == s]
+          for s in ("VERIFIED", "VIOLATED", "INSUFFICIENT_EVIDENCE")}
+    review = [a.requirement_id for a in assessments if a.contradictions]
+    if by["VIOLATED"]:
+        status, why = "VIOLATED", f"{', '.join(by['VIOLATED'])} clearly violated"
+    elif len(by["VERIFIED"]) == len(assessments):
+        status, why = "VERIFIED", f"all {len(assessments)} requirement(s) verified"
+    else:
+        status, why = "INSUFFICIENT_EVIDENCE", f"{', '.join(by['INSUFFICIENT_EVIDENCE'])} not established"
+    explanation = f"{why} ({'; '.join(f'{a.requirement_id} {a.status}' for a in assessments)})."
+    if review:
+        explanation += f" Contradictory evidence needs review for {', '.join(review)}."
+    return OverallAssessment(status=status, explanation=explanation,
+                             requirement_statuses={a.requirement_id: a.status for a in assessments},
+                             review_required=review)
 
 
 def _ambiguity_note(spec: InspectionSpec, req: ConnectionRequirement, obs: list[ObservationRecord]) -> str:

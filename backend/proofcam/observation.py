@@ -44,6 +44,11 @@ class Box1000(_Strict):
 
 Certainty = Literal["clear", "uncertain"]
 
+# Physical connector family as SEEN (shape of the socket/plug). Same words as spec.ConnectorType, plus "other" (a
+# connector of none of these families) and "unclear" (cannot be told from the photo). Defaults to "unclear" so
+# observations recorded before this field existed keep their meaning.
+ObservedConnector = Literal["ethernet", "hdmi", "usb", "power", "optical", "coaxial", "other", "unclear"]
+
 
 class SeenDevice(_Strict):
     ref: str = Field(description="Image-local id, e.g. 'D1'.")
@@ -65,11 +70,17 @@ class PortObservation(_Strict):
     plug_color: str | None = Field(description="Colour of the plug/cable in the port; null if empty or unclear.")
     insertion_visibility: Literal["clear", "partial", "occluded"]
     box: Box1000 | None
+    connector_type: ObservedConnector = Field(
+        "unclear", description="Connector family of this socket judged from its visible shape (ethernet = RJ45); "
+                               "'unclear' if the shape cannot be seen.")
 
 
 class CableObservation(_Strict):
     ref: str = Field(description="Image-local id, e.g. 'C1'.")
     color: str
+    connector_type: ObservedConnector = Field(
+        "unclear", description="Connector family of this cable's visible plug(s) (ethernet = RJ45); 'unclear' if "
+                               "no plug shape is visible.")
     path_visibility: Literal["fully_traced", "partially_visible", "mostly_hidden"]
     connected_port_refs: list[str] = Field(
         description="Ports in THIS image whose plug visibly belongs to this cable (continuous, not inferred)."

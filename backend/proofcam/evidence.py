@@ -72,7 +72,7 @@ GapCode = Literal[
 ]
 
 
-PortIdentityBasis = Literal["direct_label", "layout_inference"]
+PortIdentityBasis = Literal["direct_label", "layout_inference", "connector_shape"]
 
 
 class EvidenceItem(BaseModel):
@@ -122,6 +122,15 @@ class RequirementAssessment(BaseModel):
     gaps: list[Gap] = Field(default_factory=list)
     contradictions: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+
+
+class OverallAssessment(BaseModel):
+    """Installation-level verdict, derived by policy.overall_assessment from the requirement verdicts only."""
+
+    status: RequirementStatus
+    explanation: str
+    requirement_statuses: dict[str, RequirementStatus]
+    review_required: list[str] = Field(default_factory=list)  # requirement ids with unresolved contradictions
 
 
 class NextViewRequest(BaseModel):

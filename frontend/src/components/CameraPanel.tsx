@@ -131,27 +131,27 @@ export function CameraPanel({ active, onPhoto }: { active: boolean; onPhoto: (ph
   }
 
   const status = mode === 'starting' ? (
-    <FrameMessage icon={<LoaderCircle className="h-6 w-6 animate-spin text-fg-muted" aria-hidden />}>
-      <p className="text-fg-muted">Starting the camera…</p>
+    <FrameMessage icon={<LoaderCircle className="h-6 w-6 animate-spin text-white/80" aria-hidden />}>
+      <p className="text-white/75">Starting the camera…</p>
     </FrameMessage>
   ) : mode === 'error' ? (
-    <FrameMessage icon={<CameraOff className="h-6 w-6 text-warn" aria-hidden />}>
-      <p role="alert" className="text-fg">{error}</p>
+    <FrameMessage icon={<CameraOff className="h-6 w-6 text-[#ffc078]" aria-hidden />}>
+      <p role="alert" className="text-white">{error}</p>
     </FrameMessage>
   ) : !supported || !secure ? (
-    <FrameMessage icon={<ShieldAlert className="h-6 w-6 text-fg-subtle" aria-hidden />}>
-      <p className="text-fg-muted">
+    <FrameMessage icon={<ShieldAlert className="h-6 w-6 text-white/70" aria-hidden />}>
+      <p className="text-white/80">
         Camera access needs a secure page (HTTPS, or http://localhost on this computer). A phone opening this
         app through a plain http:// network address will block the camera. Upload a photo instead.
       </p>
     </FrameMessage>
   ) : paused ? (
-    <FrameMessage icon={<Camera className="h-6 w-6 text-accent" aria-hidden />}>
-      <p role="status" className="text-fg">The camera stopped (the app was in the background or the camera was interrupted). Tap Open camera to continue.</p>
+    <FrameMessage icon={<Camera className="h-6 w-6 text-[#7fb2ff]" aria-hidden />}>
+      <p role="status" className="text-white">The camera stopped (the app was in the background or the camera was interrupted). Tap Open camera to continue.</p>
     </FrameMessage>
   ) : (
-    <FrameMessage icon={<Camera className="h-6 w-6 text-fg-subtle" aria-hidden />}>
-      <p className="text-fg-muted">The preview is only for aiming. ProofCam analyses the photo you capture.</p>
+    <FrameMessage icon={<Camera className="h-6 w-6 text-white/80" aria-hidden />}>
+      <p className="text-white/80">The preview is only for aiming. ProofCam analyses the photo you capture.</p>
     </FrameMessage>
   )
 
@@ -168,9 +168,9 @@ export function CameraPanel({ active, onPhoto }: { active: boolean; onPhoto: (ph
         />
         {mode === 'live' ? (
           <>
-            <div className="viewfinder-corners pointer-events-none absolute inset-4" aria-hidden />
-            <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white/85 backdrop-blur-sm">
-              Preview
+            <div className="viewfinder-corners pointer-events-none absolute inset-5" aria-hidden />
+            <span className="pointer-events-none absolute left-3.5 top-3.5 rounded-full bg-black/50 px-2.5 py-1 text-xs font-medium text-white/90 backdrop-blur-md">
+              Preview · aim only
             </span>
           </>
         ) : status}
@@ -181,20 +181,20 @@ export function CameraPanel({ active, onPhoto }: { active: boolean; onPhoto: (ph
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <button
             type="button" aria-label="Upload photo" onClick={() => fileRef.current?.click()} disabled={!active || preparing}
-            className="flex h-14 flex-col items-center justify-center gap-1 justify-self-start rounded-[var(--radius-control)] px-3 text-fg-muted
-              transition-colors duration-150 hover:text-fg disabled:pointer-events-none disabled:opacity-40"
+            className="flex h-14 min-w-14 flex-col items-center justify-center gap-1 justify-self-start rounded-[var(--radius-control)] px-3 text-fg-muted
+              transition-colors duration-150 hover:bg-raised hover:text-fg disabled:pointer-events-none disabled:opacity-40"
           >
             {preparing ? <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden /> : <ImageUp className="h-5 w-5" aria-hidden />}
-            <span className="text-[11px] font-medium">{preparing ? 'Preparing…' : 'Upload'}</span>
+            <span className="text-xs font-medium">{preparing ? 'Preparing…' : 'Upload'}</span>
           </button>
 
           {mode === 'live' ? (
             <button
               type="button" aria-label="Capture" onClick={capture} disabled={!active}
-              className="group grid h-[76px] w-[76px] place-items-center rounded-full border-[3px] border-fg/90 transition-transform duration-150
-                active:scale-95 disabled:opacity-40"
+              className="group grid h-[78px] w-[78px] place-items-center rounded-full border-[3px] border-accent bg-surface shadow-[var(--shadow-lift)]
+                transition-transform duration-150 active:scale-95 disabled:opacity-40"
             >
-              <span className="h-[60px] w-[60px] rounded-full bg-fg transition-colors duration-150 group-hover:bg-white" />
+              <span className="brand-gradient h-[60px] w-[60px] rounded-full transition-[filter] duration-150 group-hover:brightness-110" />
             </button>
           ) : (
             <Button size="lg" className="h-14 min-w-44 rounded-full px-7" onClick={() => void open(facing)}
@@ -206,7 +206,7 @@ export function CameraPanel({ active, onPhoto }: { active: boolean; onPhoto: (ph
           {mode === 'live' && canSwitch ? (
             <button
               type="button" aria-label="Switch camera"
-              className="grid h-12 w-12 place-items-center justify-self-end rounded-full border border-line-strong bg-raised text-fg transition-colors duration-150 hover:bg-[#1e2226]"
+              className="grid h-12 w-12 place-items-center justify-self-end rounded-full border border-line-strong bg-surface text-fg shadow-[var(--shadow-card)] transition-colors duration-150 hover:bg-raised"
               onClick={() => { const next = facing === 'environment' ? 'user' : 'environment'; setFacing(next); void open(next) }}
             >
               <SwitchCamera className="h-5 w-5" aria-hidden />
@@ -222,17 +222,17 @@ export function CameraPanel({ active, onPhoto }: { active: boolean; onPhoto: (ph
 function FrameMessage({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center text-sm leading-relaxed">
-      <span className="grid h-12 w-12 place-items-center rounded-full border border-line-strong bg-surface">{icon}</span>
+      <span className="grid h-14 w-14 place-items-center rounded-full border border-white/15 bg-white/[0.06]">{icon}</span>
       <div className="max-w-[32ch]">{children}</div>
     </div>
   )
 }
 
 /** The fixed 3:4 (portrait) / 4:3 (wide) frame shared by the camera, the photo awaiting analysis and the
- * analysing state, so the capture area never jumps between states. */
+ * analysing state, so the capture area never jumps between states. Dark on purpose, like a viewfinder. */
 export function CaptureFrame({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={cn('relative mx-auto aspect-[3/4] max-h-[58dvh] w-full overflow-hidden rounded-[var(--radius-panel)] border border-line bg-black',
+    <div className={cn('relative mx-auto aspect-[3/4] max-h-[58dvh] w-full overflow-hidden rounded-[var(--radius-panel)] bg-viewport shadow-[var(--shadow-lift)]',
       'sm:aspect-[4/3] phone-landscape:aspect-[4/3] phone-landscape:h-[74dvh] phone-landscape:max-h-none phone-landscape:w-auto phone-landscape:max-w-full', className)}>
       {children}
     </div>
@@ -242,7 +242,8 @@ export function CaptureFrame({ className, children }: { className?: string; chil
 /** Sticky bottom bar for the primary capture actions, padded for the home indicator. */
 export function ControlBar({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 border-t border-line bg-canvas/90 px-4 pt-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div className="sticky bottom-0 z-20 -mx-4 border-t border-line bg-surface/90 px-4 pt-3 backdrop-blur-xl pb-[max(0.75rem,env(safe-area-inset-bottom))]
+      sm:mx-0 sm:rounded-[var(--radius-panel)] sm:border sm:shadow-[var(--shadow-card)]">
       {children}
     </div>
   )

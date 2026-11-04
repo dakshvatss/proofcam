@@ -51,6 +51,12 @@ per origin, and an iOS Home Screen app has its own cookie jar (enter the code ag
 Body: exactly one of `{"spec_id": "my_setup"}` (stem of a file in `data/specs/`: `my_setup`, `router_switch`) or
 `{"spec": {...inline InspectionSpec...}}`. Free (no model calls).
 
+### `GET /api/specs` → `SpecSummary[]` (M3.4; extended M3.5)
+`[{spec_id, title, devices: [name], max_photos, requirements: [{id, text, connector, cable_color (null = any),
+endpoints: [{device, port, flexible}]}]}]`. Free. Lists only specs that load, so drafts holding `TODO` placeholders
+never appear. Spec endpoints may carry a `selector` (flexible: any permitted port; see D37); `port_label` is then a
+display name such as "any LAN port". `InspectionState.created_at` (Unix seconds) is new in M3.5.
+
 ### `GET /api/inspections/{id}` → `InspectionState`
 Free; it can never call a model. Use it to resume after reload, poll while `busy`, or recover after a dropped
 capture request.
@@ -85,6 +91,12 @@ Use `photos[].photo_url` / `photos[].overlay_url`; `overlay_url` is `null` when 
 failed) → 404 `overlay_not_found` if requested anyway.
 
 ## Response shapes (key fields)
+
+`overall` (M3.4; on `InspectionState`, `StepResponse` and the JSON report): `{status, explanation,
+requirement_statuses {id: status}, review_required [id]}` or `null` before any photo. The policy derives it from
+the requirement verdicts: VERIFIED only if all are VERIFIED, VIOLATED if any is VIOLATED, otherwise
+INSUFFICIENT_EVIDENCE. Show it as is; never compute your own. Spec requirements carry `connector` (`ethernet`,
+`hdmi`, ...).
 
 `StepResponse`: `inspection_id, seq, image_id, duplicate_of (int|null), notes[str], status ("open"|"stopped"),
 stop_reason, assessments[RequirementAssessment], next_view (NextViewRequest|null), review_required[ReviewItem],

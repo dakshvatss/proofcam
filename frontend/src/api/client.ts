@@ -1,7 +1,7 @@
 // Thin client for the ProofCam HTTP API. Relative /api URLs only (Vite proxies them to FastAPI in development);
 // no credentials of any kind live in the browser.
 
-import type { AccessStatus, Health, InspectionState, StepResponse } from './types'
+import type { AccessStatus, Health, InspectionState, SpecSummary, StepResponse } from './types'
 
 export const SPEC_ID = 'my_setup'
 // Captures are synchronous and slow (25-48 s observed; much longer in the worst case). After this the client stops
@@ -76,6 +76,9 @@ export const api = {
     }),
 
   logout: () => request<string>('/api/session', { method: 'DELETE' }),
+
+  /** Specifications that can be started (free). */
+  listSpecs: () => request<SpecSummary[]>('/api/specs'),
 
   createInspection: (specId: string = SPEC_ID) =>
     request<InspectionState>('/api/inspections', {

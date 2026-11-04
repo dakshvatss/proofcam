@@ -1,0 +1,17 @@
+{
+  "id": "test_three_device",
+  "title": "SYNTHETIC TEST FIXTURE: router, console, TV (not real hardware)",
+  "devices": [
+    {"id": "router", "name": "Test Router", "description": "Synthetic test device: a router.", "sam_concept": "router"},
+    {"id": "ps5", "name": "Test Console", "description": "Synthetic test device: a game console.", "sam_concept": "game console"},
+    {"id": "tv", "name": "Test TV", "description": "Synthetic test device: a television.", "sam_concept": "television"}
+  ],
+  "requirements": [
+    {"id": "R1", "kind": "connection", "text": "The blue Ethernet cable must connect Test Router LAN 2 to the Test Console LAN port.",
+     "cable_color": "blue", "cable_type": "ethernet cable", "connector": "ethernet",
+     "endpoints": [{"device_id": "router", "port_label": "LAN 2"}, {"device_id": "ps5", "port_label": "LAN"}]},
+    {"id": "R2", "kind": "connection", "text": "The black HDMI cable must connect the Test Console HDMI OUT port to Test TV HDMI 2.",
+     "cable_color": "black", "cable_type": "hdmi cable", "connector": "hdmi",
+     "endpoints": [{"device_id": "ps5", "port_label": "HDMI OUT"}, {"device_id": "tv", "port_label": "HDMI 2"}]}
+  ]
+}

@@ -30,7 +30,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
 from .api_models import (AccessStatus, CreateInspectionRequest, EventRequest, Health, InspectionState, SessionRequest,
-                         StepResponse)
+                         SpecSummary, StepResponse)
 from .config import Settings, database_path
 from .service import InspectionService, ServiceConfig, ServiceError
 from .store import Store
@@ -159,6 +159,10 @@ def create_app(settings: Settings, store: Store, transport: httpx.AsyncBaseTrans
     @app.get("/api/health", response_model=Health)
     async def health() -> dict[str, Any]:
         return service.health()
+
+    @app.get("/api/specs", response_model=list[SpecSummary])
+    async def list_specs() -> list[SpecSummary]:
+        return service.list_specs()
 
     @app.post("/api/inspections", status_code=201, response_model=InspectionState)
     async def create_inspection(body: CreateInspectionRequest) -> InspectionState:

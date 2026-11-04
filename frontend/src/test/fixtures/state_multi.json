@@ -1,0 +1,373 @@
+{
+ "id": "insp_c220c6143b3549dfad996fcfb2129bea",
+ "spec_id": null,
+ "title": "SYNTHETIC TEST FIXTURE: router, console, TV (not real hardware)",
+ "status": "open",
+ "stop_reason": null,
+ "epoch": 0,
+ "version": 1,
+ "engine_version": "0.0.1+579e004ef854",
+ "engine_changed": false,
+ "policy_drift": [],
+ "busy": false,
+ "spec": {
+  "id": "test_three_device",
+  "title": "SYNTHETIC TEST FIXTURE: router, console, TV (not real hardware)",
+  "devices": [
+   {
+    "id": "router",
+    "name": "Test Router",
+    "description": "Synthetic test device: a router.",
+    "sam_concept": "router",
+    "port_rows": []
+   },
+   {
+    "id": "ps5",
+    "name": "Test Console",
+    "description": "Synthetic test device: a game console.",
+    "sam_concept": "game console",
+    "port_rows": []
+   },
+   {
+    "id": "tv",
+    "name": "Test TV",
+    "description": "Synthetic test device: a television.",
+    "sam_concept": "television",
+    "port_rows": []
+   }
+  ],
+  "requirements": [
+   {
+    "id": "R1",
+    "kind": "connection",
+    "text": "The blue Ethernet cable must connect Test Router LAN 2 to the Test Console LAN port.",
+    "cable_color": "blue",
+    "cable_type": "ethernet cable",
+    "connector": "ethernet",
+    "endpoints": [
+     {
+      "device_id": "router",
+      "port_label": "LAN 2",
+      "label_aliases": []
+     },
+     {
+      "device_id": "ps5",
+      "port_label": "LAN",
+      "label_aliases": []
+     }
+    ],
+    "cable_identity": "require_trace",
+    "sam_concept": null,
+    "port_identity": "label_only"
+   },
+   {
+    "id": "R2",
+    "kind": "connection",
+    "text": "The black HDMI cable must connect the Test Console HDMI OUT port to Test TV HDMI 2.",
+    "cable_color": "black",
+    "cable_type": "hdmi cable",
+    "connector": "hdmi",
+    "endpoints": [
+     {
+      "device_id": "ps5",
+      "port_label": "HDMI OUT",
+      "label_aliases": []
+     },
+     {
+      "device_id": "tv",
+      "port_label": "HDMI 2",
+      "label_aliases": []
+     }
+    ],
+    "cable_identity": "require_trace",
+    "sam_concept": null,
+    "port_identity": "label_only"
+   }
+  ]
+ },
+ "photos": [
+  {
+   "seq": 1,
+   "image_id": "img_8a08aaac56e6",
+   "source_name": "overview.jpg",
+   "width": 400,
+   "height": 300,
+   "epoch": 0,
+   "superseded": false,
+   "usable": true,
+   "responding_to": null,
+   "photo_url": "/api/inspections/insp_c220c6143b3549dfad996fcfb2129bea/photos/img_8a08aaac56e6",
+   "overlay_url": "/api/inspections/insp_c220c6143b3549dfad996fcfb2129bea/overlays/img_8a08aaac56e6"
+  }
+ ],
+ "assessments": [
+  {
+   "requirement_id": "R1",
+   "status": "VERIFIED",
+   "explanation": "Both endpoints observed with identified ports, clear insertion and matching colour, SAM-grounded (Test Router LAN 2 from photo 1; Test Console LAN from photo 1); cable identity traced in photo 1.",
+   "endpoints": [
+    {
+     "index": 0,
+     "device_id": "router",
+     "port_label": "LAN 2",
+     "state": "established",
+     "support": [
+      {
+       "seq": 1,
+       "image_id": "img_8a08aaac56e6",
+       "port_ref": "P1",
+       "device_ref": "D1",
+       "claim": "Test Router port P1 'LAN 2' [legible] (cable_inserted, plug=blue, visibility=clear)",
+       "grounding": {
+        "concept": "blue ethernet cable",
+        "sam_object_id": "0",
+        "iou": null,
+        "overlap_px": 1116,
+        "corroborated": true,
+        "note": "SAM 'blue ethernet cable' mask covers 1116px of the port region"
+       },
+       "port_basis": "direct_label"
+      }
+     ],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": null
+    },
+    {
+     "index": 1,
+     "device_id": "ps5",
+     "port_label": "LAN",
+     "state": "established",
+     "support": [
+      {
+       "seq": 1,
+       "image_id": "img_8a08aaac56e6",
+       "port_ref": "P2",
+       "device_ref": "D2",
+       "claim": "Test Console port P2 'LAN' [legible] (cable_inserted, plug=blue, visibility=clear)",
+       "grounding": {
+        "concept": "blue ethernet cable",
+        "sam_object_id": "0",
+        "iou": null,
+        "overlap_px": 1333,
+        "corroborated": true,
+        "note": "SAM 'blue ethernet cable' mask covers 1333px of the port region"
+       },
+       "port_basis": "direct_label"
+      }
+     ],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": null
+    }
+   ],
+   "identity_state": "established",
+   "identity_evidence": [
+    {
+     "seq": 1,
+     "image_id": "img_8a08aaac56e6",
+     "port_ref": null,
+     "device_ref": null,
+     "claim": "blue cable C1 traced continuously between Test Router LAN 2 = P1 (direct_label) and Test Console LAN = P2 (direct_label), SAM-grounded at both ports",
+     "grounding": null,
+     "port_basis": "direct_label"
+    }
+   ],
+   "gaps": [],
+   "contradictions": [],
+   "assumptions": []
+  },
+  {
+   "requirement_id": "R2",
+   "status": "INSUFFICIENT_EVIDENCE",
+   "explanation": "Not established: No observed port on the Test Console was legibly labelled HDMI OUT.; The Test TV has not been identified with certainty in any photo.",
+   "endpoints": [
+    {
+     "index": 0,
+     "device_id": "ps5",
+     "port_label": "HDMI OUT",
+     "state": "unknown",
+     "support": [],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": {
+      "requirement_id": "R2",
+      "code": "PORT_NOT_FOUND",
+      "endpoint_index": 0,
+      "target": "Test Console port HDMI OUT",
+      "missing_fact": "No observed port on the Test Console was legibly labelled HDMI OUT.",
+      "context": {
+       "device_id": "ps5",
+       "device": "Test Console",
+       "device_description": "Synthetic test device: a game console.",
+       "port_label": "HDMI OUT",
+       "sides_seen": [
+        "rear"
+       ]
+      }
+     }
+    },
+    {
+     "index": 1,
+     "device_id": "tv",
+     "port_label": "HDMI 2",
+     "state": "unknown",
+     "support": [],
+     "conflicts": [],
+     "inferred_only": [],
+     "gap": {
+      "requirement_id": "R2",
+      "code": "DEVICE_NOT_SEEN",
+      "endpoint_index": 1,
+      "target": "Test TV port HDMI 2",
+      "missing_fact": "The Test TV has not been identified with certainty in any photo.",
+      "context": {
+       "device_id": "tv",
+       "device": "Test TV",
+       "device_description": "Synthetic test device: a television.",
+       "port_label": "HDMI 2",
+       "seen_uncertain": false,
+       "ambiguous_photos": []
+      }
+     }
+    }
+   ],
+   "identity_state": "unknown",
+   "identity_evidence": [],
+   "gaps": [
+    {
+     "requirement_id": "R2",
+     "code": "PORT_NOT_FOUND",
+     "endpoint_index": 0,
+     "target": "Test Console port HDMI OUT",
+     "missing_fact": "No observed port on the Test Console was legibly labelled HDMI OUT.",
+     "context": {
+      "device_id": "ps5",
+      "device": "Test Console",
+      "device_description": "Synthetic test device: a game console.",
+      "port_label": "HDMI OUT",
+      "sides_seen": [
+       "rear"
+      ]
+     }
+    },
+    {
+     "requirement_id": "R2",
+     "code": "DEVICE_NOT_SEEN",
+     "endpoint_index": 1,
+     "target": "Test TV port HDMI 2",
+     "missing_fact": "The Test TV has not been identified with certainty in any photo.",
+     "context": {
+      "device_id": "tv",
+      "device": "Test TV",
+      "device_description": "Synthetic test device: a television.",
+      "port_label": "HDMI 2",
+      "seen_uncertain": false,
+      "ambiguous_photos": []
+     }
+    }
+   ],
+   "contradictions": [],
+   "assumptions": []
+  }
+ ],
+ "overall": {
+  "status": "INSUFFICIENT_EVIDENCE",
+  "explanation": "R2 not established (R1 VERIFIED; R2 INSUFFICIENT_EVIDENCE).",
+  "requirement_statuses": {
+   "R1": "VERIFIED",
+   "R2": "INSUFFICIENT_EVIDENCE"
+  },
+  "review_required": []
+ },
+ "next_view": {
+  "id": "nv1",
+  "requirement_id": "R2",
+  "gap_code": "PORT_NOT_FOUND",
+  "missing_fact": "No observed port on the Test Console was legibly labelled HDMI OUT.",
+  "target_region": "router rear ports",
+  "camera_action": "move_to_rear",
+  "instruction": "[MOCK] Move to the back of the console and frame its HDMI port so any printed label is readable.",
+  "rationale": "ports not visible",
+  "success_criteria": "LAN 1 label and plug readable",
+  "planner": "muse",
+  "based_on_image_id": "img_8a08aaac56e6",
+  "after_image_id": "img_8a08aaac56e6",
+  "gap_key": "R2:PORT_NOT_FOUND:0",
+  "planner_error": null
+ },
+ "review_required": [],
+ "exhausted_gaps": {},
+ "history": [
+  {
+   "epoch": 0,
+   "event": "photo",
+   "image_id": "img_8a08aaac56e6",
+   "next_view": "nv1",
+   "notes": [],
+   "requirements": [
+    {
+     "endpoints": [
+      {
+       "device_id": "router",
+       "port_label": "LAN 2",
+       "state": "established",
+       "support_photos": [
+        1
+       ]
+      },
+      {
+       "device_id": "ps5",
+       "port_label": "LAN",
+       "state": "established",
+       "support_photos": [
+        1
+       ]
+      }
+     ],
+     "gaps": [],
+     "id": "R1",
+     "identity_state": "established",
+     "status": "VERIFIED"
+    },
+    {
+     "endpoints": [
+      {
+       "device_id": "ps5",
+       "port_label": "HDMI OUT",
+       "state": "unknown",
+       "support_photos": []
+      },
+      {
+       "device_id": "tv",
+       "port_label": "HDMI 2",
+       "state": "unknown",
+       "support_photos": []
+      }
+     ],
+     "gaps": [
+      "R2:PORT_NOT_FOUND:0",
+      "R2:DEVICE_NOT_SEEN:1"
+     ],
+     "id": "R2",
+     "identity_state": "unknown",
+     "status": "INSUFFICIENT_EVIDENCE"
+    }
+   ],
+   "seq": 1,
+   "source_name": "overview.jpg",
+   "stop_reason": null
+  }
+ ],
+ "usage": {
+  "model_calls": 6,
+  "model_call_limit": 40,
+  "remaining": 34,
+  "calls_by_status": {
+   "ok": 6
+  },
+  "estimated_cost_usd": 0.0163,
+  "cost_basis": "list prices applied to committed trace events; excludes calls with unknown outcome"
+ },
+ "disclaimer": "ProofCam verifies visually observable conditions only. It does not certify electrical safety, hidden connectivity, operational performance, or regulatory compliance."
+}

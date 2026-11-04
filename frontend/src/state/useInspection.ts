@@ -126,13 +126,13 @@ export function useInspection() {
     }
   }, [waitUntilIdle])
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (specId?: string) => {
     if (inFlight.current) return
     inFlight.current = true
     setPhase('loading')
     setNotice(null)
     try {
-      const st = await api.createInspection()
+      const st = await api.createInspection(specId)
       setInspection(st)
       setLastStep(null)
       rememberId(st.id)

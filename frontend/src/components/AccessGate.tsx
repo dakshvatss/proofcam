@@ -26,38 +26,40 @@ export function AccessGate({ onSuccess }: { onSuccess: (status: AccessStatus) =>
   }
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col pt-10">
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-line-strong bg-surface">
-        <LockKeyhole className="h-5 w-5 text-fg" aria-hidden />
-      </span>
-      <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">Private server</p>
-      <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">Enter access code</h1>
-      <p className="mt-2 text-fg-muted">This ProofCam server is private. Use the access code set on the server.</p>
+    <div className="pt-6 sm:pt-14">
+      <div className="rounded-[var(--radius-panel)] border border-line bg-surface p-6 shadow-[var(--shadow-lift)] sm:p-8">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-accent-soft text-accent">
+          <LockKeyhole className="h-6 w-6" strokeWidth={1.9} aria-hidden />
+        </span>
+        <p className="mt-6 text-sm font-semibold text-accent">Private workspace</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-[-0.02em]">Enter access code</h1>
+        <p className="mt-2 text-fg-muted">This ProofCam server is private. Use the access code set on the server.</p>
 
-      <form onSubmit={(e) => void submit(e)} className="mt-8 space-y-4">
-        <label className="block">
-          <span className="text-sm font-medium text-fg">Access code</span>
-          <span className="relative mt-2 block">
-            <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" aria-hidden />
-            <input
-              type="password" autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck={false}
-              value={code} onChange={(e) => setCode(e.target.value)} aria-invalid={error ? true : undefined}
-              className="h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface pl-10 pr-3 text-base text-fg
-                transition-colors duration-150 placeholder:text-fg-subtle focus:border-accent focus:outline-none
-                aria-[invalid=true]:border-bad/60"
-            />
-          </span>
-        </label>
-        {error && (
-          <p role="alert" className="flex items-start gap-2 text-sm text-bad">
-            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> {error}
-          </p>
-        )}
-        <Button type="submit" size="lg" className="w-full" disabled={busy || !code.trim()}>
-          {busy && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />} Continue
-        </Button>
-      </form>
-      <p className="mt-6 text-xs leading-relaxed text-fg-subtle">
+        <form onSubmit={(e) => void submit(e)} className="mt-7 space-y-4">
+          <label className="block">
+            <span className="text-sm font-semibold text-fg">Access code</span>
+            <span className="relative mt-2 block">
+              <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" aria-hidden />
+              <input
+                type="password" autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                value={code} onChange={(e) => setCode(e.target.value)} aria-invalid={error ? true : undefined}
+                className="h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface pl-10 pr-3 text-base text-fg
+                  transition-[border-color,box-shadow] duration-150 placeholder:text-fg-subtle focus:border-accent
+                  focus:shadow-[0_0_0_3px_rgb(8_102_255/0.15)] focus:outline-none aria-[invalid=true]:border-bad/60"
+              />
+            </span>
+          </label>
+          {error && (
+            <p role="alert" className="flex items-start gap-2 text-sm text-bad">
+              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> {error}
+            </p>
+          )}
+          <Button type="submit" size="lg" className="w-full" disabled={busy || !code.trim()}>
+            {busy && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />} Continue
+          </Button>
+        </form>
+      </div>
+      <p className="mt-5 px-2 text-center text-xs leading-relaxed text-fg-subtle">
         The code is exchanged for a secure session cookie. This app never stores the code itself.
       </p>
     </div>

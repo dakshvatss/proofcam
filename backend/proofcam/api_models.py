@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .evidence import NextViewRequest, RequirementAssessment
+from .evidence import NextViewRequest, OverallAssessment, RequirementAssessment
 from .spec import InspectionSpec
 
 
@@ -92,15 +92,40 @@ class InspectionState(_Wire):
     policy_drift: list[str] = Field(description="Requirement ids whose stored assessment the current policy would "
                                                 "not reproduce. Stored verdicts are never silently replaced.")
     busy: bool
+    created_at: float | None = Field(None, description="When the inspection was created (Unix seconds).")
     spec: InspectionSpec
     photos: list[PhotoInfo]
     assessments: list[RequirementAssessment]
+    overall: OverallAssessment | None = Field(None, description="Installation verdict derived by the policy from "
+                                                                "all requirement verdicts; null before any photo.")
     next_view: NextViewRequest | None
     review_required: list[ReviewItem] = Field(default_factory=list)
     exhausted_gaps: dict[str, str]
     history: list[dict[str, Any]]
     usage: Usage
     disclaimer: str
+
+
+class SpecEndpointSummary(_Wire):
+    device: str
+    port: str
+    flexible: bool
+
+
+class SpecRequirementSummary(_Wire):
+    id: str
+    text: str
+    connector: str
+    cable_color: str | None = None
+    endpoints: list[SpecEndpointSummary] = Field(default_factory=list)
+
+
+class SpecSummary(_Wire):
+    spec_id: str
+    title: str
+    devices: list[str]
+    requirements: list[SpecRequirementSummary]
+    max_photos: int | None = None
 
 
 class StepResponse(_Wire):
@@ -112,6 +137,7 @@ class StepResponse(_Wire):
     status: Literal["open", "stopped"]
     stop_reason: str | None
     assessments: list[RequirementAssessment]
+    overall: OverallAssessment | None = None
     next_view: NextViewRequest | None
     review_required: list[ReviewItem] = Field(default_factory=list)
     version: int

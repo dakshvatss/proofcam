@@ -12,6 +12,34 @@ export const STATUS_TEXT: Record<RequirementStatus, string> = {
   INSUFFICIENT_EVIDENCE: 'Not enough evidence',
 }
 
+/** Display name of a requirement's connector family; older servers omit it (always Ethernet then). */
+export const CONNECTOR_TEXT: Record<string, string> = {
+  ethernet: 'Ethernet',
+  hdmi: 'HDMI',
+  usb: 'USB',
+  power: 'Power',
+  optical: 'Optical',
+  coaxial: 'Coaxial',
+}
+
+export function connectionName(req: { connector?: string } | undefined) {
+  return `${CONNECTOR_TEXT[req?.connector ?? 'ethernet'] ?? req?.connector} connection`
+}
+
+/** Progress wording for one connection (E): never a percentage, always the server's verdict or "Pending". */
+export const PROGRESS_TEXT: Record<RequirementStatus | 'PENDING', string> = {
+  PENDING: 'Pending',
+  VERIFIED: 'Verified',
+  VIOLATED: 'Violated',
+  INSUFFICIENT_EVIDENCE: 'Needs evidence',
+}
+
+/** Friendly template names for known specification ids (the server title is still shown beneath). */
+export const TEMPLATE_NAME: Record<string, string> = {
+  my_setup: 'Network Connection Verification',
+  ps5_home_setup: 'Home Entertainment Installation',
+}
+
 export const STOP_TEXT: Record<string, { title: string; detail: string; reopenable: boolean }> = {
   all_requirements_resolved: {
     title: 'Inspection complete',

@@ -23,6 +23,9 @@ Rules:
 - Boxes use a 0-1000 normalized grid of this image: x1,y1 top-left, x2,y2 bottom-right, x to the right,
   y downward. Box the device body, or for a port the port opening including any inserted plug. Use null
   if you cannot localize it.
+- connector_type (ports and cables): the connector family judged from the visible SHAPE of the socket or plug
+  (ethernet = RJ45, hdmi, usb, power, optical, coaxial, other). A printed label is not enough on its own; use
+  "unclear" if the shape cannot be seen.
 - spec_device_id: the id of the listed device this matches, or null if it is none of them or you are unsure.
 - shows_inspection_subject is false if none of the listed devices appear."""
 

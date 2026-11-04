@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .agent import InspectionAgent
 from .overlay import render_overlay
+from .policy import overall_assessment
 
 DISCLAIMER = ("ProofCam verifies visually observable conditions only. It does not certify electrical safety, "
               "hidden connectivity, operational performance, or regulatory compliance.")
@@ -63,6 +64,7 @@ def build_report(agent: InspectionAgent, inspection_id: str, overlays: dict[str,
                         for o in agent.observations],
         "history": agent.history,
         "requirements": [a.model_dump() for a in agent.assessments],
+        "overall": (o.model_dump() if (o := overall_assessment(agent.assessments)) else None),
         "observations": [o.model_dump() for o in agent.observations],
         "next_view_requests": [r.model_dump() for r in agent.requests],
         "review_required": agent.review_items(),
@@ -117,6 +119,12 @@ def render_markdown(agent: InspectionAgent, overlays: dict, usage: dict) -> str:
     review = agent.review_items()
     if review:
         L += ["## Review required", ""] + [f"- **{r['requirement_id']}**: {r['message']}" for r in review] + [""]
+    overall = overall_assessment(agent.assessments)
+    if overall and len(agent.assessments) > 1:
+        L += ["## Overall installation verdict", "",
+              f"**{_ICON[overall.status]}** {overall.explanation}", "",
+              "_Derived from the requirement verdicts below: VERIFIED only if every requirement is VERIFIED, "
+              "VIOLATED if any is VIOLATED, otherwise INSUFFICIENT EVIDENCE._", ""]
     L += ["## Final verdict", ""]
     for a in agent.assessments:
         req = agent.spec.requirement(a.requirement_id)

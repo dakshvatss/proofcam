@@ -38,11 +38,13 @@ from PIL import Image
 from pydantic import ValidationError
 
 from .agent import InspectionAgent, StepResult
-from .api_models import InspectionState, PhotoInfo, StepResponse, Usage
+from .api_models import (InspectionState, PhotoInfo, SpecEndpointSummary, SpecRequirementSummary, SpecSummary,
+                         StepResponse, Usage)
 from .config import REPO_ROOT, Settings
 from .images import ImageLoadError, NormalizedImage, normalize_image_bytes
 from .meta_client import BudgetExhausted, MetaClient
 from .overlay import render_overlay_jpeg
+from .policy import overall_assessment
 from .report import DISCLAIMER, build_report, render_markdown
 from .spec import InspectionSpec
 from .store import (AppendOnlyViolation, CaptureCompleted, CaptureStarted, IdempotencyConflict, InspectionBusy,
@@ -203,6 +205,27 @@ class InspectionService:
         return Usage(model_calls=counter, model_call_limit=limit, remaining=max(0, limit - counter),
                      calls_by_status=dict(by_status), estimated_cost_usd=trace.summary()["estimated_cost_usd"])
 
+    def list_specs(self) -> list[SpecSummary]:
+        """Specifications that can be started now (free; no model calls). Files that do not validate (for example
+        drafts still holding TODO placeholders) are left out, never offered."""
+        out = []
+        for p in sorted(self.config.specs_dir.glob("*.json")):
+            if not (p.is_file() and _SPEC_ID.match(p.stem)):
+                continue
+            try:
+                spec = InspectionSpec.load(p)
+            except (ValidationError, ValueError, OSError):
+                continue
+            out.append(SpecSummary(
+                spec_id=p.stem, title=spec.title, devices=[d.name for d in spec.devices],
+                max_photos=spec.max_photos,
+                requirements=[SpecRequirementSummary(
+                    id=r.id, text=r.text, connector=r.connector, cable_color=r.cable_color,
+                    endpoints=[SpecEndpointSummary(device=spec.device(e.device_id).name, port=e.port_label,
+                                                   flexible=e.flexible) for e in r.endpoints])
+                              for r in spec.requirements]))
+        return out
+
     def _load_spec(self, spec_id: str) -> InspectionSpec:
         if not _SPEC_ID.match(spec_id):
             raise ServiceError(422, "invalid_spec_id", "spec_id must be a plain name like 'router_switch'")
@@ -281,7 +304,8 @@ class InspectionService:
             id=iid, spec_id=rec.spec_id, title=rec.title, status=rec.status, stop_reason=rec.stop_reason,
             epoch=rec.epoch, version=rec.version, engine_version=rec.engine_version,
             engine_changed=rec.engine_version != engine_version(), policy_drift=agent.policy_drift(),
-            busy=rec.lease_token is not None, spec=agent.spec, photos=photos, assessments=agent.assessments,
+            busy=rec.lease_token is not None, created_at=rec.created_at, spec=agent.spec, photos=photos, assessments=agent.assessments,
+            overall=overall_assessment(agent.assessments),
             next_view=agent.requests[-1] if agent.requests and not agent.done else None,
             review_required=agent.review_items(), exhausted_gaps=dict(agent.exhausted), history=agent.history,
             usage=self._usage(iid, rec.model_calls_reserved, rec.model_call_limit, agent.trace),
@@ -408,7 +432,8 @@ class InspectionService:
         return StepResponse(
             inspection_id=iid, seq=step.seq, image_id=step.image_id, duplicate_of=last.get("duplicate_of"),
             notes=step.notes, status="stopped" if agent.done else "open", stop_reason=agent.stop_reason,
-            assessments=step.assessments, next_view=step.next_view, review_required=agent.review_items(),
+            assessments=step.assessments, overall=overall_assessment(step.assessments), next_view=step.next_view,
+            review_required=agent.review_items(),
             version=version,
             usage=self._usage(iid, counter, limit, agent.trace))
 

@@ -1,5 +1,73 @@
 # Progress log
 
+## 2026-11-04 — M3.5: final release candidate (no paid calls; not committed)
+
+Release candidate for the demo. Nothing below has been run on the real hardware with live models.
+
+**Backend**
+- Flexible requirements (D37): port selectors (allowed labels, label groups, exclusions, spec-asserted socket
+  shape), any-colour cables, and a per-spec `max_photos` (≤ 10).
+- SAM concepts are prioritised when the per-photo cap binds.
+- `GET /api/specs` adds endpoints, `cable_color` and `max_photos`; `InspectionState` adds `created_at`.
+- `data/specs/ps5_home_setup.json` is active ("Home Entertainment Installation"; any LAN port → PS5 LAN, Ethernet;
+  PS5 HDMI OUT → any TV HDMI input, HDMI; any colour; trace required; 8 photos).
+- Exact specs are unchanged (`my_setup.json` untouched).
+- New tests: `test_flexible_requirements.py` (23, mutation-checked: shape-without-observation, empty-permitted-port
+  violation, loose group prefix, ignored exclusions and untraced any-colour cables each fail a test).
+
+**Frontend:** light-first redesign.
+- Design tokens; Inter (OFL, self-hosted); new brand mark, favicon and PWA icons.
+- Landing with templates, inline setup and a connection diagram.
+- Camera workspace; honest analysing state; last-photo result from the real step response.
+- Progress per connection (Pending / Verified / Violated / Needs evidence); audit timeline from persisted
+  history; supervisor report summary with photo-backed claims, Download and JSON.
+- Two-column desktop layout; LIVE / MOCK / REPLAY labels.
+- Visual QA: headless Edge with mobile emulation, 375 / 390 / 430 px and 1440 px, on synthetic images through the
+  real API with mocked models. A diagram overflow at 390 px was found and fixed.
+
+**Results**
+- Backend: 418 passed, 1 deselected.
+- Frontend: 39 passed; `tsc` clean; oxlint the same 3 reviewed warnings; build OK, with no chunk warning (report
+  lazy-loaded).
+- The API key value appears in no file outside `.env`.
+
+Runbook and recording checklist: `docs/DEMO_RUNBOOK.md`.
+
+## 2026-11-04 — M3.4 spec finalisation: blocked on three facts (no paid calls; not committed)
+
+No router or TV photographs were found in the session or the repository (`data/images` holds only the
+2026-10-31 router/switch reference set). Filled in the draft `data/specs/drafts/ps5_home_setup.json` with what is
+established:
+- router and TV descriptions as stated by the user;
+- original PS5 rear ports as named by Sony ("LAN port", "HDMI OUT port"; spec labels `LAN` / `HDMI OUT`).
+
+Whether that text is printed on the PS5 case is not confirmed; if it is not, those endpoints stay
+INSUFFICIENT_EVIDENCE by design. Still `TODO`, so the spec stays non-loadable and is not offered by `/api/specs`:
+- the router LAN port label;
+- the TV HDMI input label;
+- the Ethernet cable colour;
+- the HDMI cable colour.
+
+`my_setup.json` is untouched. Tests: backend spec/policy/API 61 passed; frontend 35 passed; build OK.
+
+## 2026-11-04 — M3.4: three devices, two connections in one inspection (mocks only; no paid calls; not committed)
+
+Generalised engine (D36): requirement `connector`; observed `connector_type` per port and cable; connector-family
+rules in the policy; `policy.overall_assessment` exposed as `overall` in state, step responses and reports (plus a
+Markdown "Overall installation verdict" section for multi-requirement specs); `GET /api/specs`; `TODO` guard on
+specs. Draft `data/specs/drafts/ps5_home_setup.json` (Home Entertainment Installation; every hardware fact is
+`TODO`, not loadable). Frontend: spec chooser on the landing page, overall summary card, connection-labelled
+requirement cards, and guidance that names its connection. Tests: `backend/tests/test_multi_requirement.py` (23,
+synthetic fixture spec, mocked models; mutation-checked: disabling the family rule, the mixed-device rule or the
+overall rule each fails tests) and `frontend/src/multi.test.tsx` (4). Results:
+- backend: **395 passed**, 1 deselected;
+- frontend: **35 passed**;
+- `tsc` clean;
+- oxlint: the same 3 reviewed warnings;
+- build OK.
+
+Runbook and the hardware facts still needed: `docs/THREE_DEVICE_INSPECTION.md`.
+
 ## 2026-11-04 — M3.3 UI/UX redesign (frontend only; no paid calls; not committed)
 
 Visual and UX refinement of every screen. No change to the API client, `useInspection` (capture, retry, idempotency,
