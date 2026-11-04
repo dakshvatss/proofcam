@@ -1,24 +1,24 @@
 {
-  "id": "ps5_home_setup_assisted_v1",
+  "id": "ps5_home_setup_assisted_v2",
   "title": "Home Entertainment Installation (operator-assisted)",
   "max_photos": 12,
   "devices": [
     {
-      "id": "router",
-      "name": "Wi-Fi Router",
-      "description": "Black rectangular Wi-Fi router with a circular logo. On the rear: a row of four yellow RJ45 sockets printed LAN 1 to LAN 4, with a separate RJ45 socket immediately to their left.",
-      "sam_concept": "router"
+      "id": "source",
+      "name": "Ethernet-capable source device",
+      "description": "Either a Wi-Fi router, a network gateway, or a Jio set-top box / media receiver with an RJ45 Ethernet socket; all are equally acceptable for this inspection. The installation being inspected uses a dark navy Jio set-top box with rounded corners, a circular Jio logo and one visible RJ45 Ethernet socket; its other connectors include HDMI, USB, coaxial-style and power connections. Do not require four yellow LAN sockets, LAN 1-4 labels or other router-specific features. In identification_basis, state which category it appears to be; never call a set-top box a router.",
+      "sam_concept": "set-top box"
     },
     {
       "id": "ps5",
       "name": "PlayStation 5",
-      "description": "Original Sony PlayStation 5 console (standard model, not Slim or Pro): tall console with white outer covers around a black centre body. Rear connections per Sony: one LAN port, one HDMI OUT port, two USB Type-A ports and an AC IN power connector.",
+      "description": "Original Sony PlayStation 5 console, disc edition (standard model, not Slim or Pro), standing upright: tall console with white outer covers around a black centre body. Its rear connection strip has two USB Type-A ports, one RJ45 Ethernet (LAN) port, one HDMI OUT port and an AC IN power connector.",
       "sam_concept": "game console"
     },
     {
       "id": "tv",
-      "name": "Samsung Television",
-      "description": "Large black Samsung television. Its rear/side connection panel has three HDMI-shaped inputs with two USB-A-style ports above them.",
+      "name": "Television",
+      "description": "Any large flat-panel television or display, any brand, possibly wall-mounted. No logo, brand name or model text needs to be visible: a flat screen body, or the back or side panel of such a display, is enough to identify it. Its connection panel, which may be a recessed vertical panel at the rear or side, has several HDMI inputs and USB ports; HDMI numbers may be missing, hidden or unreadable. Identify ports by connector geometry and layout when printed labels are unavailable.",
       "sam_concept": "television"
     }
   ],
@@ -26,20 +26,20 @@
     {
       "id": "R1",
       "kind": "connection",
-      "text": "Connect the PlayStation 5 to the Wi-Fi router using an Ethernet cable plugged into any valid router LAN port and the PS5 LAN port.",
+      "text": "Connect the PlayStation 5 Ethernet LAN socket to an RJ45 Ethernet socket on an accepted source device (Wi-Fi router, network gateway, Jio set-top box or Ethernet-capable media receiver). Physical connector insertion and cable identity are verified; network or internet connectivity is not assessed.",
       "cable_color": null,
       "cable_type": "ethernet cable",
       "connector": "ethernet",
       "endpoints": [
         {
-          "device_id": "router",
-          "port_label": "any LAN port",
+          "device_id": "source",
+          "port_label": "any RJ45 Ethernet socket",
           "selector": {
-            "allowed_group": "LAN",
             "excluded_labels": [
               "WAN",
               "Internet"
-            ]
+            ],
+            "any_socket_of_connector": true
           }
         },
         {
@@ -60,7 +60,7 @@
     {
       "id": "R2",
       "kind": "connection",
-      "text": "Connect the PlayStation 5 HDMI OUT port to any valid HDMI input on the Samsung television.",
+      "text": "Connect the PlayStation 5 HDMI OUT port to any HDMI input on the television with an HDMI cable seated at both ends.",
       "cable_color": null,
       "cable_type": "hdmi cable",
       "connector": "hdmi",
@@ -96,6 +96,7 @@
     "ignore_cable_color": true,
     "confirmable_insertions": true,
     "max_attempts_per_gap": 1,
-    "suppress_micro_adjustments": true
+    "suppress_micro_adjustments": true,
+    "allow_attestations": true
   }
 }

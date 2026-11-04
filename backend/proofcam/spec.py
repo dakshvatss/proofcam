@@ -164,6 +164,9 @@ class AssistedMode(_Strict):
     confirmable_insertions: bool = True
     max_attempts_per_gap: int = Field(1, ge=1, le=3)
     suppress_micro_adjustments: bool = True
+    # The person inspecting may attest an endpoint the photos could not establish, with a typed note of what they
+    # checked. Never against contrary photo evidence; verdicts relying on it are labelled operator-attested.
+    allow_attestations: bool = False
 
 
 class InspectionSpec(_Strict):

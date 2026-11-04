@@ -1,5 +1,21 @@
 # Progress log
 
+## 2026-11-04 — M3.9: assisted template accepts a router OR a Jio set-top box (no paid calls; not committed)
+- An **intentional spec change**, requested by the user for this installation. The equipment is a dark navy Jio
+  set-top box with one RJ45 socket and a white Ethernet cable to the PS5. This is not a claim that a set-top box is
+  technically equivalent to a router.
+- In `ps5_home_setup_assisted.json` (now `_v2`), device `router` / "Wi-Fi Router" becomes `source` / "Ethernet source
+  device". Its description lists the accepted categories and tells Muse to state the category and never call a
+  set-top box a router.
+- The R1 source endpoint accepts any RJ45 socket identified by its observed shape. A legibly labelled `WAN` or
+  `Internet` socket never qualifies. There are no LAN 1–4 labels, port count or colour requirements.
+- The PS5 description lists two USB-A, RJ45, HDMI OUT and AC IN. The TV accepts any HDMI input, numbering optional.
+- The report lists, per photo, which spec device each seen device was matched to and Muse's own description, so the
+  actual category is shown.
+- The previous router-based assisted spec is kept as `backend/tests/fixtures/assisted_router_spec.json`, so the
+  M3.7/M3.8 assisted-rule tests still run against it. The strict template and all other templates are unchanged.
+- Tests: backend 493 passed (`test_m39_source_device.py` 8). Frontend 54 passed; build OK.
+
 ## 2026-11-04 — M3.8: operator-assisted Home template usability (no paid calls; not committed)
 
 **Root causes of the repetition** (Report B record):

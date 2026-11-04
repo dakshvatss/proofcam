@@ -282,7 +282,7 @@ class InspectionAgent:
 
     async def declare(self, kind: DeclarationKind, *, seq: int | None = None, device_id: str | None = None,
                       requirement_id: str | None = None, endpoint_index: int | None = None,
-                      now: float | None = None) -> OperatorDeclaration:
+                      note: str | None = None, now: float | None = None) -> OperatorDeclaration:
         """Record a statement by the person inspecting and re-assess (no model calls, no photo used).
 
         Refused (ValueError, nothing recorded) unless the spec permits that kind of declaration and the evidence it
@@ -295,7 +295,7 @@ class InspectionAgent:
         self._check_idle()
         self._busy = True
         try:
-            return await self._declare(kind, seq, device_id, requirement_id, endpoint_index, now)
+            return await self._declare(kind, seq, device_id, requirement_id, endpoint_index, now, note)
         finally:
             self._busy = False
 
@@ -327,9 +327,35 @@ class InspectionAgent:
                          and d.requirement_id == req.id and d.endpoint_index == idx), None)
         return statement, existing
 
+    def _check_attestation(self, requirement_id: str | None, idx: int | None, note: str | None
+                           ) -> tuple[str, OperatorDeclaration | None]:
+        """Validate a written endpoint attestation (assisted templates that allow it)."""
+        a_spec = self.spec.assisted
+        if a_spec is None or not a_spec.allow_attestations:
+            raise ValueError("this specification does not permit written attestations")
+        text = (note or "").strip()
+        if not 10 <= len(text) <= 500:
+            raise ValueError("describe what you checked yourself (10 to 500 characters)")
+        req = next((r for r in self.spec.requirements if r.id == requirement_id), None)
+        if req is None or idx not in (0, 1):
+            raise ValueError("an attestation needs a requirement and an endpoint (0 or 1)")
+        a = next((x for x in self.assessments if x.requirement_id == req.id), None)
+        ep = a.endpoints[idx] if a is not None else None  # type: ignore[index]
+        e = req.endpoints[idx]
+        dev = self.spec.device(e.device_id).name
+        if ep is not None and ep.state == "established":
+            raise ValueError(f"the {dev} end is already established from photos")
+        if ep is not None and (ep.state in ("violated", "contradicted") or ep.conflicts):
+            raise ValueError(f"photos show contrary evidence at the {dev} end (for example an empty socket or another "
+                             "plug); an attestation cannot override what the photos show")
+        statement = f"I checked the {dev} {e.port_label} end myself: {text}"
+        existing = next((d for d in self.current_declarations if d.kind == "endpoint_attestation"
+                         and d.requirement_id == req.id and d.endpoint_index == idx), None)
+        return statement, existing
+
     async def _declare(self, kind: DeclarationKind, seq: int | None, device_id: str | None,
                        requirement_id: str | None, endpoint_index: int | None,
-                       now: float | None) -> OperatorDeclaration:
+                       now: float | None, note: str | None = None) -> OperatorDeclaration:
         if kind == "device_identity":
             if not self.spec.allow_device_identity_declarations:
                 raise ValueError("this specification does not permit device-identity declarations")
@@ -361,6 +387,8 @@ class InspectionAgent:
                              if d.kind == kind and d.requirement_id == req.id), None)
         elif kind == "endpoint_insertion":
             statement, existing = self._check_insertion(requirement_id, endpoint_index)
+        elif kind == "endpoint_attestation":
+            statement, existing = self._check_attestation(requirement_id, endpoint_index, note)
         else:
             raise ValueError(f"unknown declaration kind {kind!r}")
         if existing is not None:
@@ -369,7 +397,8 @@ class InspectionAgent:
                                    statement=statement, seq=seq if kind == "device_identity" else None,
                                    device_id=device_id if kind == "device_identity" else None,
                                    requirement_id=requirement_id if kind != "device_identity" else None,
-                                   endpoint_index=endpoint_index if kind == "endpoint_insertion" else None,
+                                   endpoint_index=endpoint_index if kind.startswith("endpoint_") else None,
+                                   note=note.strip() if kind == "endpoint_attestation" and note else None,
                                    created_at=time.time() if now is None else now)
         self.declarations.append(decl)
         self.trace.add("agent_step", "operator_declaration", detail=decl.model_dump())

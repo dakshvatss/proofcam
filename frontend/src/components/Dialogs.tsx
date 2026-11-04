@@ -67,13 +67,17 @@ export function ChangeDialog({ open, onCancel, onConfirm }: {
 
 /** Explicit confirmation of a statement by the person inspecting (device identity in one photo, or one cable between
  * two supported ends). Shows the exact sentence that will be recorded and what it does and does not prove. */
-export function DeclareDialog({ statement, detail, onCancel, onConfirm }: {
+export function DeclareDialog({ statement, detail, onCancel, onConfirm, needsNote = false }: {
   statement: string
   detail: string
   onCancel: () => void
-  onConfirm: () => Promise<boolean>
+  onConfirm: (note?: string) => Promise<boolean>
+  /** Written attestation: the person must describe what they checked (10-500 characters). */
+  needsNote?: boolean
 }) {
   const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const noteOk = !needsNote || (note.trim().length >= 10 && note.length <= 500)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onCancel() }
     window.addEventListener('keydown', onKey)
@@ -89,15 +93,28 @@ export function DeclareDialog({ statement, detail, onCancel, onConfirm }: {
           “{statement}”
         </p>
         <p className="mt-3 text-sm leading-relaxed text-fg-muted">{detail}</p>
+        {needsNote && (
+          <label className="mt-4 block">
+            <span className="text-sm font-semibold text-fg">What did you check yourself?</span>
+            <textarea
+              className="mt-2 w-full resize-none rounded-[var(--radius-control)] border border-line-strong bg-surface p-3 text-base text-fg
+                transition-[border-color,box-shadow] duration-150 placeholder:text-fg-subtle focus:border-accent
+                focus:shadow-[0_0_0_3px_rgb(8_102_255/0.15)] focus:outline-none"
+              rows={3} maxLength={500} value={note} autoFocus aria-label="What did you check yourself?"
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Looked behind the TV: the HDMI cable is pushed fully into an HDMI input."
+            />
+          </label>
+        )}
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">
           It is recorded as <strong className="font-semibold text-fg">your statement</strong>, not as something the
           models saw. Any verdict that relies on it is marked as relying on your statement in the app and the report.
         </p>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <Button variant="secondary" size="lg" onClick={onCancel} disabled={busy}>Cancel</Button>
-          <Button size="lg" disabled={busy} onClick={async () => {
+          <Button size="lg" disabled={busy || !noteOk} onClick={async () => {
             setBusy(true)
-            const ok = await onConfirm()
+            const ok = await onConfirm(needsNote ? note.trim() : undefined)
             setBusy(false)
             if (ok) onCancel()
           }}>

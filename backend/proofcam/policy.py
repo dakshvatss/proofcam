@@ -438,9 +438,19 @@ def confirmable(obs: list[ObservationRecord], req: ConnectionRequirement, items:
     return [x for x in items if _observed_family(obs, x) == req.connector]
 
 
+def attestations(spec: InspectionSpec, declarations: list[OperatorDeclaration] | tuple = ()
+                 ) -> dict[tuple[str, int], str]:
+    """(requirement id, endpoint index) -> the written note, for assisted templates that allow attestations."""
+    if spec.assisted is None or not spec.assisted.allow_attestations:
+        return {}
+    return {(x.requirement_id, x.endpoint_index): x.note for x in declarations
+            if x.kind == "endpoint_attestation" and x.requirement_id and x.endpoint_index is not None and x.note}
+
+
 def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
                     obs: list[ObservationRecord], require_grounding: bool,
-                    declared: frozenset[int] = frozenset(), insertion_confirmed: bool = False) -> EndpointAssessment:
+                    declared: frozenset[int] = frozenset(), insertion_confirmed: bool = False,
+                    attestation: str | None = None) -> EndpointAssessment:
     """`declared`: photos the person inspecting declared show this endpoint's device (see device_declarations).
     `insertion_confirmed`: the person inspecting confirmed the Muse-only plug at this endpoint (assisted only)."""
     e = req.endpoints[idx]
@@ -608,6 +618,11 @@ def assess_endpoint(spec: InspectionSpec, req: ConnectionRequirement, idx: int,
             "insertion_basis": "operator_confirmed",
             "claim": x.claim + " — SAM did not corroborate; insertion confirmed by the person inspecting"}) for x in ok]
         weak = [x for x in weak if x not in ok]
+    if attestation and not support and not conflicts:
+        # Assisted only: a written attestation stands in for photo evidence of this end; never against any contrary
+        # observation (an empty socket or another plug keeps the endpoint contradicted/violated/unknown).
+        support = [EvidenceItem(seq=0, image_id="operator_attestation", attested=True,
+                                claim=f"Attested by the person inspecting; no photo established this: \"{attestation}\"")]
     claimed_support = support + weak
     # A declaration supports identity only: negative evidence from a photo whose device identity rests on it never
     # establishes a violation on its own (it still blocks verification as a contradiction, below).
@@ -810,7 +825,9 @@ def _seqs(seqs: list[int]) -> str:
 
 
 def _photos(items: list[EvidenceItem]) -> str:
-    return ", ".join(f"photo {s}" for s in sorted({x.seq for x in items})) or "none"
+    seqs = sorted({x.seq for x in items})
+    return ", ".join([f"photo {s}" for s in seqs if s > 0] + (["your written attestation"] if 0 in seqs else [])) \
+        or "none"
 
 
 def _observed_family(obs: list[ObservationRecord], x: EvidenceItem) -> str | None:
@@ -829,9 +846,15 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
     where the spec permits them; see device_declarations and the cable-identity rules below."""
     declared_devices = device_declarations(spec, declarations)
     seated = insertion_confirmations(spec, declarations)
+    attested = attestations(spec, declarations)
     eps = [assess_endpoint(spec, req, i, obs, require_grounding,
-                           declared_devices.get(req.endpoints[i].device_id, frozenset()), (req.id, i) in seated)
+                           declared_devices.get(req.endpoints[i].device_id, frozenset()), (req.id, i) in seated,
+                           attested.get((req.id, i)))
            for i in range(2)]
+    may_attest = spec.assisted is not None and spec.assisted.allow_attestations
+    for ep in eps:
+        if may_attest and ep.gap is not None and ep.state == "unknown" and not ep.conflicts:
+            ep.gap.context["attestation_permitted"] = True
     gaps = [ep.gap for ep in eps if ep.gap]
     contradictions = [f"{ep.device_id} {ep.port_label}: "
                       + "; ".join(f"[{x.image_id}] {x.claim}" for x in ep.support + ep.conflicts)
@@ -877,6 +900,10 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
         if ep.support and len(declared) == len(ep.support):
             operator.append(f"You confirmed that the device in {_photos(declared)} is the "
                             f"{spec.device(ep.device_id).name}; Muse could not identify it with certainty there.")
+        if any(s.attested for s in ep.support):
+            note = next(s.claim for s in ep.support if s.attested).split(": ", 1)[-1]
+            operator.append(f"You attested the {spec.device(ep.device_id).name} {ep.port_label} end in writing; no "
+                            f"photo established it: {note}")
         seated_items = [s for s in ep.support if s.insertion_basis == "operator_confirmed"]
         if seated_items:
             operator.append(f"You confirmed that the {req.connector} plug Muse saw in {_photos(seated_items)} is "
@@ -891,7 +918,8 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
     # The cable-identity declaration is accepted only for two endpoints that photos already support, where Muse
     # explicitly reported the requirement's connector family at both ports, and where no photo traces either
     # endpoint's cable somewhere else. It never replaces a trace and never resolves a contradiction.
-    families_ok = both and all(any(_observed_family(obs, s) == req.connector for s in ep.support) for ep in eps)
+    families_ok = both and all(any(s.attested or _observed_family(obs, s) == req.connector for s in ep.support)
+                               for ep in eps)
     declaration_contradicted = cable_declared and bool(trace_conflicts) and not traced
     # Opposing traces: a proof that the endpoint's cable reaches the spec port and a qualifying trace of the same
     # endpoint's cable to another port (or, when the spec asserts the cable is unique, any such trace while both
@@ -974,7 +1002,8 @@ def assess_requirement(spec: InspectionSpec, req: ConnectionRequirement, obs: li
                         + (", SAM-grounded" if require_grounding else "") + f" ({where})" + how + ambiguity,
             endpoints=eps, identity_state=identity_state, identity_evidence=identity_ev,
             assumptions=assumptions, operator_declarations=operator,
-            assurance="operator_assisted" if operator else "spec_assumption" if assumptions else "visual")
+            assurance=("operator_attested" if any(s.attested for ep in eps for s in ep.support)
+                       else "operator_assisted" if operator else "spec_assumption" if assumptions else "visual"))
 
     missing = "; ".join(g.missing_fact for g in gaps)
     if trace_conflicts and not contested and not any(g.code == "CABLE_CONTINUITY" for g in gaps):
@@ -1009,7 +1038,7 @@ def overall_assessment(assessments: list[RequirementAssessment]) -> OverallAsses
         explanation += f" Contradictory evidence needs review for {', '.join(review)}."
     assurance = None
     if status == "VERIFIED":
-        order = ["visual", "spec_assumption", "operator_assisted"]
+        order = ["visual", "spec_assumption", "operator_assisted", "operator_attested"]
         assurance = max((a.assurance or "visual" for a in assessments), key=order.index)
     return OverallAssessment(status=status, explanation=explanation,
                              requirement_statuses={a.requirement_id: a.status for a in assessments},

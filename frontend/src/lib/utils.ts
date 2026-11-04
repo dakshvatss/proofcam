@@ -93,11 +93,13 @@ export const ASSURANCE_TEXT: Record<Assurance, string> = {
   visual: 'Rests on the photos alone',
   spec_assumption: 'Rests on the photos and disclosed spec assumptions',
   operator_assisted: 'Relies on your statements: not independently verified',
+  operator_attested: 'Part of this rests only on your written attestation: no photo evidence for it',
 }
 
 /** Verdict wording. Operator-assisted templates name the provenance of a VERIFIED verdict; others are unchanged. */
 export function verdictText(status: RequirementStatus, assurance: Assurance | null | undefined, assisted: boolean) {
   if (!assisted || status !== 'VERIFIED' || !assurance) return STATUS_TEXT[status]
+  if (assurance === 'operator_attested') return 'Verified — operator-attested'
   return assurance === 'operator_assisted' ? 'Verified — operator-assisted' : 'Verified — visual evidence'
 }
 

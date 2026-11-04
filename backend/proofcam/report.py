@@ -22,6 +22,8 @@ ASSURANCE_TEXT = {
     "visual": "photos only (Muse observations grounded by SAM; labels read directly)",
     "spec_assumption": "photos plus assumptions made by the spec author (listed)",
     "operator_assisted": "photos plus statements by the person inspecting (listed); not independently verified",
+    "operator_attested": "at least one connection end rests ONLY on a written attestation by the person inspecting, "
+                         "with no photo evidence (quoted below)",
 }
 
 
@@ -122,6 +124,8 @@ def _ep_line(agent: InspectionAgent, ep) -> list[str]:
 
 def _provenance(s) -> str:
     """Where one supporting item comes from: Muse observation, SAM corroboration, layout/shape assumption, statements."""
+    if s.attested:
+        return "written attestation by the operator; NO photo evidence"
     parts = ["Muse observation"]
     if s.insertion_basis == "operator_confirmed":
         parts.append("NOT SAM-corroborated; insertion confirmed by the operator")
@@ -139,6 +143,8 @@ def verdict_label(status: str, assurance: str | None, assisted: bool = True) -> 
     """VERIFIED — VISUAL EVIDENCE / VERIFIED — OPERATOR-ASSISTED, from the policy's verdict and assurance."""
     if status != "VERIFIED" or assurance is None or not assisted:
         return _ICON[status]
+    if assurance == "operator_attested":
+        return "[VERIFIED — OPERATOR-ATTESTED, NOT VISUALLY ESTABLISHED]"
     return "[VERIFIED — OPERATOR-ASSISTED]" if assurance == "operator_assisted" else "[VERIFIED — VISUAL EVIDENCE]"
 
 
@@ -242,6 +248,12 @@ def render_markdown(agent: InspectionAgent, overlays: dict, usage: dict) -> str:
             continue
         e = o.extraction
         L.append(f"Scene: {e.scene_summary}")
+        if agent.spec.assisted is not None:
+            # Spec devices may cover several categories (e.g. router OR set-top box): show what Muse actually saw.
+            names = {d.id: d.name for d in agent.spec.devices}
+            for d in e.devices:
+                L.append(f"- Device {d.ref}: matched to {names.get(d.spec_device_id or '', 'no spec device')} "
+                         f"({d.identification_certainty}); Muse's description: {d.identification_basis}")
         if not e.shows_inspection_subject:
             L.append("**Photo does not show the specified equipment — no evidence taken.**")
         if o.image_id in overlays:

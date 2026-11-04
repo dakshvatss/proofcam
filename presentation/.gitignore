@@ -1,0 +1,9 @@
+# Raw photos from the author's home and the screen recordings. They appear in the deck and the video on purpose, but
+# the raw files stay private unless you deliberately choose to publish them (project rule: no private photos in git).
+assets/photos/
+media/
+*.mp4
+*.mov
+*.m4v
+# Rendered QA images (regenerate with tools/render.ps1)
+previews/

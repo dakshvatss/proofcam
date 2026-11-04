@@ -484,7 +484,7 @@ class InspectionService:
 
     async def record_declaration(self, inspection_id: str, kind: str, *, seq: int | None = None,
                                  device_id: str | None = None, requirement_id: str | None = None,
-                                 endpoint_index: int | None = None) -> InspectionState:
+                                 endpoint_index: int | None = None, note: str | None = None) -> InspectionState:
         """A statement by the person inspecting (OperatorDeclaration). No model calls: the agent runs on a client
         whose transport refuses the network, and any replacement camera request comes from the fixed templates."""
         token = self._acquire(inspection_id)
@@ -493,7 +493,7 @@ class InspectionService:
             async with self._read_only_agent(bundle) as agent:
                 try:
                     await agent.declare(kind, seq=seq, device_id=device_id,  # type: ignore[arg-type]
-                                        requirement_id=requirement_id, endpoint_index=endpoint_index)
+                                        requirement_id=requirement_id, endpoint_index=endpoint_index, note=note)
                 except ValueError as e:
                     raise ServiceError(422, "declaration_refused", str(e)) from e
                 self.store.commit_step(inspection_id, token, bundle.version, agent.snapshot(), agent.trace.events,

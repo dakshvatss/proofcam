@@ -1,0 +1,143 @@
+1
+00:00:00,300 --> 00:00:03,696
+AI can recognise what's in a photo.
+
+2
+00:00:03,746 --> 00:00:06,650
+But can it prove what's true?
+
+3
+00:00:07,300 --> 00:00:10,717
+Installations are signed off on photos and checklists.
+
+4
+00:00:10,767 --> 00:00:17,650
+But a cable you can see is not proof that the right two ports are connected.
+
+5
+00:00:18,300 --> 00:00:21,906
+Image AI asks: what's in this picture?
+
+6
+00:00:21,956 --> 00:00:27,650
+ProofCam asks: what evidence establishes this requirement, and what's still missing?
+
+7
+00:00:28,300 --> 00:00:36,650
+This is ProofCam: an AI agent that inspects physical installations, decides what it still needs to see, and asks for that exact view.
+
+8
+00:00:37,300 --> 00:00:41,130
+First, a failure case, on AI-generated test photos.
+
+9
+00:00:41,180 --> 00:00:45,010
+The requirement: a blue cable into LAN 1.
+
+10
+00:00:45,060 --> 00:00:53,740
+Muse Spark reads the port labels, SAM grounds the plug, and the policy sees LAN 1 clearly empty.
+
+11
+00:00:53,790 --> 00:00:54,225
+Violated.
+
+12
+00:00:54,275 --> 00:00:56,165
+Not ‘looks plugged in’.
+
+13
+00:00:56,215 --> 00:00:56,650
+Violated.
+
+14
+00:00:57,300 --> 00:00:59,546
+Every photo re-evaluates every requirement.
+
+15
+00:00:59,596 --> 00:01:09,650
+When a fact is missing, like whether one cable joins both ends, ProofCam plans the next camera view to close that gap.
+
+16
+00:01:10,300 --> 00:01:12,643
+Two Meta models, one system.
+
+17
+00:01:12,693 --> 00:01:17,429
+Muse Spark reasons: photos become structured claims and next-view plans.
+
+18
+00:01:17,479 --> 00:01:21,736
+SAM 3.1 grounds those claims in real pixels.
+
+19
+00:01:21,786 --> 00:01:23,650
+A deterministic policy decides.
+
+20
+00:01:24,300 --> 00:01:31,841
+Now my real setup: a Jio set-top box, a PlayStation 5 and a TV.
+
+21
+00:01:31,891 --> 00:01:32,926
+Four photos.
+
+22
+00:01:32,976 --> 00:01:39,432
+Each time, Muse observes, SAM segments, and the policy re-checks both connections.
+
+23
+00:01:39,482 --> 00:01:43,228
+Three plug ends are established from photos.
+
+24
+00:01:43,278 --> 00:01:48,650
+One HDMI plug Muse saw, but SAM could not confirm.
+
+25
+00:01:49,300 --> 00:01:52,228
+That is where ProofCam stays honest.
+
+26
+00:01:52,278 --> 00:02:02,650
+When the camera can't prove something, it says so, and records exactly what I confirmed, labelled as human, not as vision.
+
+27
+00:02:03,300 --> 00:02:05,697
+The result: verified, operator-attested.
+
+28
+00:02:05,747 --> 00:02:13,650
+Every claim links to a photo, a model output or a time-stamped statement.
+
+29
+00:02:14,300 --> 00:02:24,650
+Under the hood: structured model outputs, policy-only verdicts, an append-only evidence store, call budgets, and over five hundred automated tests.
+
+30
+00:02:25,300 --> 00:02:26,941
+Today it's cables.
+
+31
+00:02:26,991 --> 00:02:37,650
+But the same loop, requirement, evidence, verification, audit trail, could serve data centres, telecom, factories, energy and field maintenance.
+
+32
+00:02:38,300 --> 00:02:46,650
+What if every physical installation could explain why it was trusted?
+
+33
+00:02:47,300 --> 00:02:48,307
+ProofCam.
+
+34
+00:02:48,357 --> 00:02:50,421
+Muse reasons.
+
+35
+00:02:50,471 --> 00:02:52,536
+SAM grounds.
+
+36
+00:02:52,586 --> 00:02:54,650
+Policy verifies.

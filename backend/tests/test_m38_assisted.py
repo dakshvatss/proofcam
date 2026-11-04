@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 
 import pytest
 
@@ -49,7 +50,8 @@ def tv_clear(seq, color="white"):
 
 # ======================================================================================== 0. scope isolation
 def test_only_the_assisted_template_has_assisted_rules():
-    assert ASSISTED.assisted is not None and ASSISTED.id == "ps5_home_setup_assisted_v1"
+    real = InspectionSpec.load(Path(__file__).resolve().parents[2] / "data" / "specs" / "ps5_home_setup_assisted.json")
+    assert real.assisted is not None and real.id == "ps5_home_setup_assisted_v2" and ASSISTED.assisted is not None
     assert HOME.assisted is None and EXACT.assisted is None
     assert ASSISTED.assisted.max_attempts_per_gap == 1 and ASSISTED.assisted.ignore_cable_color
 

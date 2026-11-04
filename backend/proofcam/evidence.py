@@ -96,6 +96,8 @@ class EvidenceItem(BaseModel):
     # None: the insertion is SAM-grounded (or grounding was not required). "operator_confirmed": Muse saw the plug
     # clearly, SAM did not corroborate it, and the person inspecting confirmed it (assisted templates only).
     insertion_basis: Literal["operator_confirmed"] | None = None
+    # True: no photo established this; the person inspecting attested it in writing (seq 0, no image).
+    attested: bool = False
 
 
 class Gap(BaseModel):
@@ -145,7 +147,8 @@ class RequirementAssessment(BaseModel):
     #                       generic 'cable' fallback); listed in `assumptions`;
     #   operator_assisted - also on statements by the person inspecting; listed in `operator_declarations`.
     # The verdict itself is unchanged by this field; it says how much of it was independently observed.
-    assurance: Literal["visual", "spec_assumption", "operator_assisted"] | None = None
+    #   operator_attested - at least one endpoint rests ONLY on a written attestation, with no photo evidence.
+    assurance: Literal["visual", "spec_assumption", "operator_assisted", "operator_attested"] | None = None
     operator_declarations: list[str] = Field(default_factory=list)
 
 
@@ -157,7 +160,7 @@ class OverallAssessment(BaseModel):
     requirement_statuses: dict[str, RequirementStatus]
     review_required: list[str] = Field(default_factory=list)  # requirement ids with unresolved contradictions
     # For VERIFIED: the weakest assurance among the requirements (operator_assisted > spec_assumption > visual).
-    assurance: Literal["visual", "spec_assumption", "operator_assisted"] | None = None
+    assurance: Literal["visual", "spec_assumption", "operator_assisted", "operator_attested"] | None = None
 
 
 class NextViewRequest(BaseModel):
@@ -203,7 +206,7 @@ class ViewCheck(BaseModel):
     counted_as_attempt: bool
 
 
-DeclarationKind = Literal["device_identity", "cable_identity", "endpoint_insertion"]
+DeclarationKind = Literal["device_identity", "cable_identity", "endpoint_insertion", "endpoint_attestation"]
 
 
 class OperatorDeclaration(BaseModel):
@@ -222,5 +225,6 @@ class OperatorDeclaration(BaseModel):
     seq: int | None = None  # device_identity: the photo
     device_id: str | None = None  # device_identity: the spec device
     requirement_id: str | None = None  # cable_identity / endpoint_insertion: the requirement
-    endpoint_index: int | None = None  # endpoint_insertion: which end (0 or 1)
+    endpoint_index: int | None = None  # endpoint_insertion / endpoint_attestation: which end (0 or 1)
+    note: str | None = None  # endpoint_attestation: what the person says they checked, verbatim
     created_at: float

@@ -47,16 +47,19 @@ function EvidenceRow({ item, tone, onShowPhoto }: { item: EvidenceItem; tone: 'f
     <li className="relative pl-4">
       <span aria-hidden className={cn('absolute bottom-0.5 left-0 top-0.5 w-[3px] rounded-full', rail)} />
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <button type="button" onClick={() => onShowPhoto?.(item.seq)} aria-label={`Show photo ${item.seq}`}
-          className="inline-flex items-center gap-0.5 rounded-md text-[13px] font-semibold text-accent hover:underline underline-offset-2">
-          Photo {item.seq}<ChevronRight className="h-3.5 w-3.5" aria-hidden />
-        </button>
+        {item.attested ? <span className="text-[13px] font-semibold text-accent">Your attestation</span> : (
+          <button type="button" onClick={() => onShowPhoto?.(item.seq)} aria-label={`Show photo ${item.seq}`}
+            className="inline-flex items-center gap-0.5 rounded-md text-[13px] font-semibold text-accent hover:underline underline-offset-2">
+            Photo {item.seq}<ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        )}
         <span className={cn('text-xs font-medium', tone === 'for' ? 'text-ok' : tone === 'against' ? 'text-bad' : 'text-fg-subtle')}>
           {tone === 'for' ? 'supports' : tone === 'against' ? 'contradicts' : 'not counted'}
         </span>
         {item.port_basis && BASIS_TEXT[item.port_basis] && <span className="text-xs text-warn">{BASIS_TEXT[item.port_basis]}</span>}
         {item.device_basis === 'operator_declared' && <span className="text-xs text-accent">device confirmed by you</span>}
         {item.insertion_basis === 'operator_confirmed' && <span className="text-xs text-accent">plug confirmed by you · not SAM-corroborated</span>}
+        {item.attested && <span className="text-xs text-accent">your written attestation · no photo</span>}
       </div>
       <p className="mt-1 break-words text-[13px] leading-relaxed text-fg-muted">{item.claim}</p>
       {item.grounding && (
@@ -118,11 +121,12 @@ export function EvidenceDetails({ a, spec, onShowPhoto }: { a: RequirementAssess
   )
 }
 
-const seqList = (items: EvidenceItem[]) => [...new Set(items.map((s) => s.seq))].join(', ')
+const seqList = (items: EvidenceItem[]) => [...new Set(items.filter((s) => s.seq > 0).map((s) => s.seq))].join(', ')
 
 /** How far the evidence for one endpoint got: accepted (and on what), seen by Muse only, or nothing yet. */
 function endpointLevel(ep: EndpointAssessment): { text: string; tone: 'ok' | 'warn' | 'accent' } | null {
   if (ep.state === 'established') {
+    if (ep.support.every((s) => s.attested)) return { text: 'attested by you in writing · no photo evidence', tone: 'accent' }
     if (ep.support.every((s) => s.insertion_basis === 'operator_confirmed')) {
       return { text: 'seen by Muse · plug confirmed by you (SAM did not corroborate)', tone: 'accent' }
     }
@@ -136,11 +140,33 @@ function endpointLevel(ep: EndpointAssessment): { text: string; tone: 'ok' | 'wa
   return null
 }
 
-export type DeclareHandler = (req: DeclarationRequest, statement: string, detail: string) => void
+export type DeclareHandler = (req: DeclarationRequest, statement: string, detail: string, needsNote?: boolean) => void
 
 /** The statements a gap allows the person inspecting to make (only where the server says the spec permits them). */
-function declarations(g: Gap, spec: InspectionSpec): { req: DeclarationRequest; label: string; statement: string; detail: string }[] {
-  if (g.context.declaration_permitted !== true) return []
+type Offer = { req: DeclarationRequest; label: string; statement: string; detail: string; needsNote?: boolean }
+
+/** Written attestation for an end the photos could not establish (server sets context.attestation_permitted). */
+function attestation(g: Gap, spec: InspectionSpec): Offer[] {
+  const r = spec.requirements.find((x) => x.id === g.requirement_id)
+  if (g.context.attestation_permitted !== true || !r || g.endpoint_index === null) return []
+  const e = r.endpoints[g.endpoint_index]
+  const device = spec.devices.find((d) => d.id === e.device_id)?.name ?? e.device_id
+  return [{
+    req: { type: 'endpoint_attestation', requirement_id: r.id, endpoint_index: g.endpoint_index },
+    label: 'I checked this end myself',
+    statement: `I checked the ${device} ${e.port_label} end myself.`,
+    detail: 'Use this only when the photos cannot show it but you have checked it in person. Your note is quoted in the app and the report, and the connection is labelled "Verified — operator-attested", not visually established. It is refused if any photo shows that socket empty or holding another plug.',
+    needsNote: true,
+  }]
+}
+
+function declarations(g: Gap, spec: InspectionSpec): Offer[] {
+  const extra = attestation(g, spec)
+  if (g.context.declaration_permitted !== true) return extra
+  return [...declarationOffers(g, spec), ...extra]
+}
+
+function declarationOffers(g: Gap, spec: InspectionSpec): Offer[] {
   const r = spec.requirements.find((x) => x.id === g.requirement_id)
   if (g.code === 'DEVICE_UNCONFIRMED' && r && g.endpoint_index !== null) {
     const deviceId = r.endpoints[g.endpoint_index].device_id
@@ -226,7 +252,7 @@ export function VerdictCard({ a, spec, onShowPhoto, onDeclare }: {
                 </span>
                 <span className={cn('shrink-0 text-right text-[13px]', ep.state === 'established' ? 'text-ok' : ep.state === 'unknown' ? 'text-fg-subtle' : 'text-bad')}>
                   {ENDPOINT_STATE[ep.state] ?? ep.state}
-                  {ep.support.length > 0 && ` (photo ${seqList(ep.support)})`}
+                  {seqList(ep.support) && ` (photo ${seqList(ep.support)})`}
                 </span>
               </li>
             )
@@ -251,7 +277,7 @@ export function VerdictCard({ a, spec, onShowPhoto, onDeclare }: {
                     <p className="leading-relaxed text-fg-muted"><span className="font-semibold text-fg">{GAP_TEXT[g.code] ?? g.code}.</span> {g.missing_fact}</p>
                     {onDeclare && a.status === 'INSUFFICIENT_EVIDENCE' && declarations(g, spec).map((d) => (
                       <Button key={d.label} variant="secondary" size="sm" className="mt-2 h-auto whitespace-normal py-2 text-left"
-                        onClick={() => onDeclare(d.req, d.statement, d.detail)}>
+                        onClick={() => (d.needsNote ? onDeclare(d.req, d.statement, d.detail, true) : onDeclare(d.req, d.statement, d.detail))}>
                         <UserCheck className="h-4 w-4 shrink-0" aria-hidden />{d.label}…
                       </Button>
                     ))}

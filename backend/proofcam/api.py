@@ -189,7 +189,7 @@ def create_app(settings: Settings, store: Store, transport: httpx.AsyncBaseTrans
             return await service.declare_installation_changed(inspection_id, body.reason)  # type: ignore[arg-type]
         return await service.record_declaration(inspection_id, body.type, seq=body.seq, device_id=body.device_id,
                                                  requirement_id=body.requirement_id,
-                                                 endpoint_index=body.endpoint_index)
+                                                 endpoint_index=body.endpoint_index, note=body.note)
 
     @app.get("/api/inspections/{inspection_id}/report", response_model=None)
     async def report(inspection_id: str,

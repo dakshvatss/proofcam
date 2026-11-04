@@ -47,6 +47,8 @@ export interface EvidenceItem {
   device_basis?: 'operator_declared' | null
   /** operator_confirmed: Muse saw the plug, SAM did not corroborate it, the person inspecting confirmed it. */
   insertion_basis?: 'operator_confirmed' | null
+  /** No photo established this; the person inspecting attested it in writing (seq 0). */
+  attested?: boolean
 }
 
 export interface Gap {
@@ -87,18 +89,19 @@ export interface RequirementAssessment {
   operator_declarations?: string[]
 }
 
-export type Assurance = 'visual' | 'spec_assumption' | 'operator_assisted'
+export type Assurance = 'visual' | 'spec_assumption' | 'operator_assisted' | 'operator_attested'
 
 /** A statement made by the person inspecting, recorded verbatim. Never model output, never proof. */
 export interface OperatorDeclaration {
   id: string
-  kind: 'device_identity' | 'cable_identity' | 'endpoint_insertion'
+  kind: 'device_identity' | 'cable_identity' | 'endpoint_insertion' | 'endpoint_attestation'
   epoch: number
   statement: string
   seq?: number | null
   device_id?: string | null
   requirement_id?: string | null
   endpoint_index?: number | null
+  note?: string | null
   created_at: number
 }
 
@@ -106,6 +109,7 @@ export type DeclarationRequest =
   | { type: 'device_identity'; seq: number; device_id: string }
   | { type: 'cable_identity'; requirement_id: string }
   | { type: 'endpoint_insertion'; requirement_id: string; endpoint_index: number }
+  | { type: 'endpoint_attestation'; requirement_id: string; endpoint_index: number; note?: string }
 
 /** Did a photo show the view the previous camera request asked for? Guidance bookkeeping only: independent of
  * the evidence the policy accepted and of every verdict. */

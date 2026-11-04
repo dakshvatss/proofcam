@@ -33,7 +33,8 @@ from test_persistence import replay_factory
 
 ROOT = Path(__file__).resolve().parents[2]
 HOME = InspectionSpec.load(ROOT / "data" / "specs" / "ps5_home_setup.json")
-ASSISTED = InspectionSpec.load(ROOT / "data" / "specs" / "ps5_home_setup_assisted.json")
+# Router-based assisted spec (the pre-M3.9 assisted template), kept as a fixture so the assisted rules stay covered.
+ASSISTED = InspectionSpec.load(Path(__file__).parent / "fixtures" / "assisted_router_spec.json")
 EXACT = InspectionSpec.load(ROOT / "data" / "specs" / "router_switch.json")
 B = json.loads((Path(__file__).parent / "fixtures" / "live_home_report_b.json").read_text(encoding="utf-8"))
 ETH, HDMI = "ethernet cable", "hdmi cable"
@@ -386,7 +387,7 @@ def test_declarations_over_http_persist_across_restart_cost_nothing_and_appear_i
             ok = await c.post(f"/api/inspections/{iid}/events",
                               json={"type": "device_identity", "seq": 1, "device_id": "tv", "confirm": True})
             assert ok.status_code == 200, ok.text
-            assert [d["statement"] for d in ok.json()["declarations"]] == ["Photo 1 shows the Samsung Television."]
+            assert [d["statement"] for d in ok.json()["declarations"]] == ["Photo 1 shows the Television."]
             assert len(fm.requests) == sent  # a declaration never calls a model
         async with server(tmp_path, fm) as (c, store, _a):  # restart, with the default per-inspection limit
             st = (await c.get(f"/api/inspections/{iid}")).json()
@@ -400,7 +401,7 @@ def test_declarations_over_http_persist_across_restart_cost_nothing_and_appear_i
             assert "synthetic" in rep["provenance_note"] and rep["photo_budget"] == {"photos_used": 1,
                                                                                     "max_photos": 12}
             md = (await c.get(f"/api/inspections/{iid}/report", params={"format": "md"})).text
-            assert "Statements by the person inspecting" in md and "Photo 1 shows the Samsung Television." in md
+            assert "Statements by the person inspecting" in md and "Photo 1 shows the Television." in md
             assert "Models called:" in md
             # append-only: the stored declaration cannot be dropped by a later snapshot
             b = store.load_restore_bundle(iid)

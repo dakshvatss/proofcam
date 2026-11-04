@@ -23,7 +23,7 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
   // A photo the user picked stays shown until a newer photo arrives; then the newest is shown.
   const [picked, setPicked] = useState<{ seq: number; whenLatest: number | null } | null>(null)
   const [changeOpen, setChangeOpen] = useState(false)
-  const [declaring, setDeclaring] = useState<{ req: DeclarationRequest; statement: string; detail: string } | null>(null)
+  const [declaring, setDeclaring] = useState<{ req: DeclarationRequest; statement: string; detail: string; needsNote?: boolean } | null>(null)
   const latest = st.photos.length ? st.photos[st.photos.length - 1].seq : null
   const selected = picked && picked.whenLatest === latest ? picked.seq : latest
   const setSelected = (seq: number) => setPicked({ seq, whenLatest: latest })
@@ -188,7 +188,7 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
           <div className={cn(o.verdicts, 'space-y-5')}>
             {assessed?.map((a) => (
               <VerdictCard key={a.requirement_id} a={a} spec={st.spec} onShowPhoto={showPhoto}
-                onDeclare={working ? undefined : (req, statement, detail) => setDeclaring({ req, statement, detail })} />
+                onDeclare={working ? undefined : (req, statement, detail, needsNote) => setDeclaring({ req, statement, detail, needsNote })} />
             ))}
             {showStop && <StopCard reason={st.stop_reason!} onDeclare={() => setChangeOpen(true)} />}
           </div>
@@ -209,7 +209,8 @@ export function InspectionView({ s, onReport, modelSource = null }: { s: Inspect
       {changeOpen && <ChangeDialog open onCancel={() => setChangeOpen(false)} onConfirm={s.declareChange} />}
       {declaring && (
         <DeclareDialog statement={declaring.statement} detail={declaring.detail} onCancel={() => setDeclaring(null)}
-          onConfirm={() => s.declare(declaring.req)} />
+          needsNote={declaring.needsNote}
+          onConfirm={(note) => s.declare(note && declaring.req.type === 'endpoint_attestation' ? { ...declaring.req, note } : declaring.req)} />
       )}
     </div>
   )
